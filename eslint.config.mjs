@@ -6,4 +6,8 @@ export default defineConfig([
   ...nextVitals,
   ...nextTypeScript,
   globalIgnores([".next/**", "playwright-report/**", "test-results/**"]),
+  {
+    files: ["tests/**/*.ts", "tests/**/*.tsx"],
+    rules: { "@typescript-eslint/no-explicit-any": "off" },
+  },
 ]);
