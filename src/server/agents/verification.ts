@@ -58,12 +58,15 @@ const HUMAN_ONLY_CATEGORIES = new Set([
 /**
  * Determines if a category requires mandatory human physical verification.
  * AI verdict alone cannot close these.
+ * Checks each word in the category string individually.
  */
 export function requiresHumanPhysicalCheck(category: string): boolean {
-  const normalized = category.toLowerCase().replace(/[/_\s]+/g, "_");
-  return (
-    PHYSICAL_CHECK_CATEGORIES.has(normalized) ||
-    HUMAN_ONLY_CATEGORIES.has(normalized)
+  // Split on any delimiter: /, space, _, -
+  const words = category.toLowerCase().split(/[/\s_\-]+/);
+  return words.some(
+    (word) =>
+      PHYSICAL_CHECK_CATEGORIES.has(word) ||
+      HUMAN_ONLY_CATEGORIES.has(word)
   );
 }
 
