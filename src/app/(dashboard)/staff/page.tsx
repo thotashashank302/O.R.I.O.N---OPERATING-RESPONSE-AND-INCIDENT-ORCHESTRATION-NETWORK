@@ -16,18 +16,18 @@ import { AssignmentActionButton } from "@/features/operations/AssignmentActionBu
 import type { Assignment } from "@/contracts/operations";
 
 const SEVERITY_BADGE: Record<string, string> = {
-  critical: "bg-red-500/20 text-red-400 border-red-500/30",
-  high: "bg-amber-500/20 text-amber-400 border-amber-500/30",
-  normal: "bg-blue-500/20 text-blue-400 border-blue-500/30",
-  low: "bg-slate-500/20 text-slate-400 border-slate-500/30",
+  critical: "bg-red-50 text-red-700 border-red-300",
+  high: "bg-amber-50 text-amber-700 border-amber-300",
+  normal: "bg-blue-50 text-blue-700 border-blue-300",
+  low: "bg-stone-50 text-stone-600 border-stone-300",
 };
 
 const STATE_BADGE: Record<string, string> = {
-  offered: "bg-purple-500/20 text-purple-400",
-  acknowledged: "bg-blue-500/20 text-blue-400",
-  active: "bg-emerald-500/20 text-emerald-400",
-  handover_requested: "bg-amber-500/20 text-amber-400",
-  completed: "bg-slate-500/20 text-slate-400",
+  offered: "bg-purple-50 text-purple-700",
+  acknowledged: "bg-blue-50 text-blue-700",
+  active: "bg-emerald-50 text-emerald-700",
+  handover_requested: "bg-amber-50 text-amber-700",
+  completed: "bg-stone-50 text-stone-600",
 };
 
 function AssignmentCard({ assignment }: { assignment: Assignment }) {
@@ -39,8 +39,8 @@ function AssignmentCard({ assignment }: { assignment: Assignment }) {
 
   return (
     <div
-      className={`rounded-2xl border bg-slate-800/60 p-5 backdrop-blur-sm transition-all hover:border-slate-600 ${
-        isOverdue ? "border-red-500/40" : "border-slate-700/50"
+      className={`rounded-2xl border bg-white/80 p-5 transition-all hover:border-stone-400 ${
+        isOverdue ? "border-red-300" : "border-stone-200"
       }`}
     >
       {/* Top row */}
@@ -68,19 +68,19 @@ function AssignmentCard({ assignment }: { assignment: Assignment }) {
             </span>
           )}
         </div>
-        <span className="font-mono text-xs text-slate-600">
+        <span className="font-mono text-xs text-stone-400">
           v{assignment.version}
         </span>
       </div>
 
       {/* Incident title */}
-      <h3 className="mb-1 font-semibold text-white leading-snug">
+      <h3 className="mb-1 font-semibold leading-snug">
         {incident?.title ?? "Task Assignment"}
       </h3>
 
       {/* Category + location */}
       {incident && (
-        <div className="mb-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500">
+        <div className="mb-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-stone-500">
           <span>{incident.category}</span>
           <span>📍 {incident.location_label}</span>
         </div>
@@ -89,18 +89,18 @@ function AssignmentCard({ assignment }: { assignment: Assignment }) {
       {/* Checklist preview */}
       {task?.checklist && task.checklist.length > 0 && (
         <div className="mb-3">
-          <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-slate-500">
+          <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-stone-500">
             Checklist
           </p>
           <ul className="space-y-1">
             {task.checklist.slice(0, 3).map((item, i) => (
-              <li key={i} className="flex items-center gap-2 text-xs text-slate-400">
+              <li key={i} className="flex items-center gap-2 text-xs text-stone-600">
                 <span className="h-1.5 w-1.5 rounded-full bg-cyan-500/60" />
                 {item}
               </li>
             ))}
             {task.checklist.length > 3 && (
-              <li className="text-xs text-slate-600">
+              <li className="text-xs text-stone-400">
                 +{task.checklist.length - 3} more
               </li>
             )}
@@ -110,7 +110,7 @@ function AssignmentCard({ assignment }: { assignment: Assignment }) {
 
       {/* Ack deadline */}
       {assignment.acknowledgement_deadline && (
-        <p className={`text-xs ${isOverdue ? "text-red-400" : "text-slate-500"}`}>
+        <p className={`text-xs ${isOverdue ? "text-red-600" : "text-stone-500"}`}>
           Acknowledge by:{" "}
           {new Date(assignment.acknowledgement_deadline).toLocaleString("en-IN", {
             timeZone: "Asia/Kolkata",
@@ -194,11 +194,11 @@ export default async function StaffPage() {
   const offeredCount = assignments.filter((a) => a.state === "offered").length;
 
   return (
-    <div className="min-h-screen bg-slate-950 px-4 py-8 sm:px-8">
+    <div className="px-4 py-8 sm:px-8">
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-2xl font-bold text-white">My Work Queue</h1>
-        <p className="mt-1 text-sm text-slate-400">
+        <h1 className="text-2xl font-bold">My Work Queue</h1>
+        <p className="mt-1 text-sm text-stone-500">
           Showing your authorized assignments only
         </p>
       </div>
@@ -214,8 +214,8 @@ export default async function StaffPage() {
               membershipId={membership.id}
             />
           ) : (
-            <div className="rounded-2xl border border-slate-700/50 bg-slate-800/50 p-5">
-              <p className="text-sm text-slate-500">
+            <div className="rounded-2xl border border-stone-200 bg-white/80 p-5">
+              <p className="text-sm text-stone-500">
                 No availability record found. Contact supervisor.
               </p>
             </div>
@@ -223,13 +223,13 @@ export default async function StaffPage() {
 
           {/* Stats */}
           <div className="grid grid-cols-2 gap-3">
-            <div className="rounded-xl border border-slate-700/50 bg-slate-800/50 p-4 text-center">
-              <p className="text-2xl font-bold text-cyan-400">{activeCount}</p>
-              <p className="mt-0.5 text-xs text-slate-500">Active</p>
+            <div className="rounded-xl border border-stone-200 bg-white/80 p-4 text-center">
+              <p className="text-2xl font-bold text-cyan-600">{activeCount}</p>
+              <p className="mt-0.5 text-xs text-stone-500">Active</p>
             </div>
-            <div className="rounded-xl border border-slate-700/50 bg-slate-800/50 p-4 text-center">
-              <p className="text-2xl font-bold text-purple-400">{offeredCount}</p>
-              <p className="mt-0.5 text-xs text-slate-500">Pending Ack</p>
+            <div className="rounded-xl border border-stone-200 bg-white/80 p-4 text-center">
+              <p className="text-2xl font-bold text-purple-600">{offeredCount}</p>
+              <p className="mt-0.5 text-xs text-stone-500">Pending Ack</p>
             </div>
           </div>
         </div>
@@ -237,7 +237,7 @@ export default async function StaffPage() {
         {/* Right column: assignments */}
         <div id="work" className="scroll-mt-6 space-y-4 lg:col-span-2">
           {assignments.length === 0 ? (
-            <div className="flex h-48 items-center justify-center rounded-2xl border border-dashed border-slate-700 text-sm text-slate-600">
+            <div className="flex h-48 items-center justify-center rounded-2xl border border-dashed border-stone-300 text-sm text-stone-500">
               No active assignments. Check back soon.
             </div>
           ) : (

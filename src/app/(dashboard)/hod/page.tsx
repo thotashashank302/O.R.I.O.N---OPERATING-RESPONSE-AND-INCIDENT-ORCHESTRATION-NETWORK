@@ -60,10 +60,10 @@ interface RawIncidentRow {
 }
 
 const SEVERITY_COLOR: Record<string, string> = {
-  critical: "text-red-400 border-red-500/30 bg-red-500/10",
-  high: "text-amber-400 border-amber-500/30 bg-amber-500/10",
-  normal: "text-blue-400 border-blue-500/30 bg-blue-500/10",
-  low: "text-slate-400 border-slate-500/30 bg-slate-500/10",
+  critical: "text-red-700 border-red-300 bg-red-50",
+  high: "text-amber-700 border-amber-300 bg-amber-50",
+  normal: "text-blue-700 border-blue-300 bg-blue-50",
+  low: "text-stone-600 border-stone-300 bg-stone-50",
 };
 
 export default async function HODPage() {
@@ -176,11 +176,11 @@ export default async function HODPage() {
   const overdueCount = incidentQueue.filter((i) => i.is_overdue).length;
 
   return (
-    <div className="min-h-screen bg-slate-950 px-4 py-8 sm:px-8">
+    <div className="px-4 py-8 sm:px-8">
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-2xl font-bold text-white">HOD Operations</h1>
-        <p className="mt-1 text-sm text-slate-400">
+        <h1 className="text-2xl font-bold">HOD Operations</h1>
+        <p className="mt-1 text-sm text-stone-500">
           Department incident oversight, escalations, and approvals
         </p>
       </div>
@@ -191,17 +191,18 @@ export default async function HODPage() {
         <StatCard label="Critical" value={criticalCount} color="red" />
         <StatCard label="Overdue" value={overdueCount} color="amber" />
         <StatCard label="Pending Approvals" value={pendingApprovals.length} color="purple" />
+
       </div>
 
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
         {/* Pending Approvals */}
         <section id="approvals" className="scroll-mt-6">
-          <h2 className="mb-4 text-lg font-semibold text-white">
+          <h2 className="mb-4 text-lg font-semibold">
             Pending Approvals
           </h2>
 
           {pendingApprovals.length === 0 ? (
-            <div className="flex h-32 items-center justify-center rounded-2xl border border-dashed border-slate-700 text-sm text-slate-600">
+            <div className="flex h-32 items-center justify-center rounded-2xl border border-dashed border-stone-300 text-sm text-stone-500">
               No pending approvals
             </div>
           ) : (
@@ -223,12 +224,12 @@ export default async function HODPage() {
 
         {/* Incident Queue */}
         <section id="incidents" className="scroll-mt-6">
-          <h2 className="mb-4 text-lg font-semibold text-white">
+          <h2 className="mb-4 text-lg font-semibold">
             Incident Queue
           </h2>
 
           {incidentQueue.length === 0 ? (
-            <div className="flex h-32 items-center justify-center rounded-2xl border border-dashed border-slate-700 text-sm text-slate-600">
+            <div className="flex h-32 items-center justify-center rounded-2xl border border-dashed border-stone-300 text-sm text-stone-500">
               No open incidents
             </div>
           ) : (
@@ -236,10 +237,10 @@ export default async function HODPage() {
               {incidentQueue.map((incident) => (
                 <div
                   key={incident.id}
-                  className={`rounded-xl border bg-slate-800/60 p-4 transition-all hover:border-slate-600 ${
+                  className={`rounded-xl border bg-white/80 p-4 transition-all hover:border-stone-400 ${
                     incident.is_overdue
-                      ? "border-red-500/40"
-                      : "border-slate-700/50"
+                      ? "border-red-300"
+                      : "border-stone-200"
                   }`}
                 >
                   <div className="mb-2 flex items-center justify-between gap-2">
@@ -251,25 +252,25 @@ export default async function HODPage() {
                       >
                         {incident.severity}
                       </span>
-                      <span className="rounded-full bg-slate-700/50 px-2 py-0.5 text-xs text-slate-400 capitalize">
+                      <span className="rounded-full bg-stone-100 px-2 py-0.5 text-xs text-stone-600 capitalize">
                         {incident.state.replace(/_/g, " ")}
                       </span>
                       {incident.is_overdue && (
-                        <span className="rounded-full bg-red-500/20 px-2 py-0.5 text-xs font-semibold text-red-400">
+                        <span className="rounded-full bg-red-50 px-2 py-0.5 text-xs font-semibold text-red-600">
                           Escalate
                         </span>
                       )}
                     </div>
-                    <span className="font-mono text-xs text-slate-600">
+                    <span className="font-mono text-xs text-stone-400">
                       v{incident.version}
                     </span>
                   </div>
 
-                  <p className="text-sm font-medium text-white capitalize">
+                  <p className="text-sm font-medium capitalize">
                     {incident.category.replace(/_/g, " ")}
                   </p>
-                  <p className="text-xs text-slate-500">📍 {incident.location}</p>
-                  <p className="mt-1 text-xs text-slate-600">
+                  <p className="text-xs text-stone-500">📍 {incident.location}</p>
+                  <p className="mt-1 text-xs text-stone-400">
                     Opened:{" "}
                     {new Date(incident.created_at).toLocaleString("en-IN", {
                       timeZone: "Asia/Kolkata",
@@ -297,15 +298,15 @@ function StatCard({
   color: "cyan" | "red" | "amber" | "purple";
 }) {
   const colorMap = {
-    cyan: "text-cyan-400",
-    red: "text-red-400",
-    amber: "text-amber-400",
-    purple: "text-purple-400",
+    cyan: "text-cyan-600",
+    red: "text-red-600",
+    amber: "text-amber-600",
+    purple: "text-purple-600",
   };
   return (
-    <div className="rounded-xl border border-slate-700/50 bg-slate-800/50 p-4 text-center">
+    <div className="rounded-xl border border-stone-200 bg-white/80 p-4 text-center">
       <p className={`text-3xl font-bold ${colorMap[color]}`}>{value}</p>
-      <p className="mt-1 text-xs text-slate-500">{label}</p>
+      <p className="mt-1 text-xs text-stone-500">{label}</p>
     </div>
   );
 }

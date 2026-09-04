@@ -4,10 +4,10 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 const COLOR_CLASS = {
-  cyan: "border-cyan-500/30 bg-cyan-500/10 text-cyan-700 hover:bg-cyan-500/20",
-  emerald: "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/20",
-  amber: "border-amber-500/30 bg-amber-500/10 text-amber-800 hover:bg-amber-500/20",
-  red: "border-red-500/30 bg-red-500/10 text-red-700 hover:bg-red-500/20",
+  cyan: "border-cyan-300 bg-cyan-50 text-cyan-700 hover:bg-cyan-100",
+  emerald: "border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100",
+  amber: "border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100",
+  red: "border-red-300 bg-red-50 text-red-700 hover:bg-red-100",
 } as const;
 
 export function AssignmentActionButton({

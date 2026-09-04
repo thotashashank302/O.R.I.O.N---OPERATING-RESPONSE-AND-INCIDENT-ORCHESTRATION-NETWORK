@@ -24,6 +24,7 @@ button, a { -webkit-tap-highlight-color: transparent; }
 ::selection { background: #9fd3e7; color: #171a1e; }
 :focus-visible { outline: 2px solid #26789c; outline-offset: 3px; }
 
+/* ───── Dashboard grid ───── */
 .orion-dashboard {
   min-height: 100dvh;
   display: grid;
@@ -32,6 +33,7 @@ button, a { -webkit-tap-highlight-color: transparent; }
   color: var(--orion-ink);
 }
 
+/* ───── Sidebar ───── */
 .orion-sidebar {
   position: sticky;
   top: 0;
@@ -78,6 +80,7 @@ button, a { -webkit-tap-highlight-color: transparent; }
 .orion-system-note small { color: var(--orion-muted); font-size: 10px; line-height: 1.35; }
 .orion-status-dot { width: 7px; height: 7px; margin-top: 4px; border-radius: 50%; background: #4d9874; box-shadow: 0 0 0 3px #dce8de; }
 
+/* ───── Workspace / Topbar ───── */
 .orion-workspace { min-width: 0; }
 .orion-topbar { min-height: 73px; display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 12px clamp(20px, 3vw, 44px); border-bottom: 1px solid var(--orion-line); background: rgba(249, 244, 235, .92); }
 .orion-topbar > div:first-child { display: grid; gap: 2px; }
@@ -85,11 +88,162 @@ button, a { -webkit-tap-highlight-color: transparent; }
 .orion-topbar > div:first-child strong { font-family: Georgia, "Times New Roman", serif; font-size: 17px; font-weight: 500; }
 .orion-topbar-actions { display: flex; align-items: center; gap: 10px; }
 
+/*
+ * Topbar button theming — only style the direct context-switcher and sign-out
+ * buttons; do NOT style buttons inside dropdown menus or modals.
+ */
+.orion-topbar-actions > button,
+.orion-topbar-actions > div > button:first-child {
+  border-color: #cdbda7;
+  background: #f6efe4;
+  color: #3d372f;
+  box-shadow: none;
+}
+.orion-topbar-actions > button:hover,
+.orion-topbar-actions > div > button:first-child:hover {
+  background: #e8dbc9;
+}
+.orion-topbar-actions > div > button:first-child span[class*="bg-emerald"] {
+  background: #4d9874 !important;
+  box-shadow: none !important;
+}
+
+/* ───── Dashboard content — warm institutional theme ───── */
 .orion-dashboard-content { min-width: 0; padding: clamp(18px, 3vw, 42px); }
+
+/* Scope page container (the direct child div from each page.tsx) */
+.orion-dashboard-content > div {
+  min-height: auto !important;
+  max-width: 1180px;
+  margin-inline: auto;
+  padding: 0 !important;
+  background: transparent !important;
+  color: var(--orion-ink) !important;
+}
+
+/* Hide duplicate inner headers from pages that have their own header+main structure */
+.orion-dashboard-content > div > main { max-width: none !important; padding: 0 !important; }
+
+/* Typography */
 .orion-dashboard-content h1,
 .orion-dashboard-content h2 { font-family: Georgia, "Times New Roman", serif; letter-spacing: -.025em; }
 .orion-dashboard-content table { font-variant-numeric: tabular-nums; }
 
+/*
+ * Institutional theme recoloring — EXCLUDES interactive elements.
+ * The :not() list prevents override of buttons, links, inputs, selects, textareas,
+ * and common interactive component patterns so they keep their designed colors.
+ */
+.orion-dashboard-content div:not(button):not(a):not(input):not(select):not(textarea)[class*="bg-gradient-to-"] {
+  background: #e9dece !important;
+}
+
+/* Recolor dark layout containers but NOT interactive elements */
+.orion-dashboard-content div[class*="bg-slate-950"]:not(:is(button, a, [role="button"])),
+.orion-dashboard-content div[class*="bg-slate-900"]:not(:is(button, a, [role="button"])),
+.orion-dashboard-content section[class*="bg-slate-800"],
+.orion-dashboard-content div[class*="min-h-screen"][class*="bg-slate-950"] {
+  background-color: var(--orion-paper) !important;
+}
+
+/* Recolor borders on layout containers only */
+.orion-dashboard-content div[class*="border-slate-8"]:not(:is(button, a, [role="button"])),
+.orion-dashboard-content div[class*="border-slate-7"]:not(:is(button, a, [role="button"])),
+.orion-dashboard-content section[class*="border-slate-7"] {
+  border-color: var(--orion-line) !important;
+}
+
+/* Text color mapping — layout text only, not button/link text */
+.orion-dashboard-content h1,
+.orion-dashboard-content h2,
+.orion-dashboard-content h3,
+.orion-dashboard-content h4,
+.orion-dashboard-content p.text-white,
+.orion-dashboard-content span.text-white,
+.orion-dashboard-content div.text-white,
+.orion-dashboard-content p.text-slate-100,
+.orion-dashboard-content p.text-slate-200,
+.orion-dashboard-content p.text-slate-300,
+.orion-dashboard-content span.text-slate-300,
+.orion-dashboard-content h1.text-white,
+.orion-dashboard-content h2.text-white,
+.orion-dashboard-content h3.text-white { color: var(--orion-ink) !important; }
+
+.orion-dashboard-content p.text-slate-400,
+.orion-dashboard-content p.text-slate-500,
+.orion-dashboard-content span.text-slate-400,
+.orion-dashboard-content span.text-slate-500,
+.orion-dashboard-content p.text-slate-600 { color: var(--orion-muted) !important; }
+
+/* Remove heavy shadows from cards */
+.orion-dashboard-content [class*="rounded-2xl"],
+.orion-dashboard-content [class*="rounded-xl"] { box-shadow: none; }
+
+/* ───── Staff/HOD card theming — remap dark cards to warm ───── */
+.orion-dashboard-content div[class*="bg-slate-800/60"],
+.orion-dashboard-content div[class*="bg-slate-800/50"] {
+  background-color: #fbf6ee !important;
+  border-color: var(--orion-line) !important;
+}
+
+/* Stat cards */
+.orion-dashboard-content div[class*="bg-slate-800/50"][class*="text-center"] {
+  background-color: #fbf6ee !important;
+}
+
+/* Approval panel / availability control containers */
+.orion-dashboard-content div[class*="bg-slate-800/50"][class*="backdrop-blur"] {
+  background-color: #fbf6ee !important;
+}
+
+/* Remap dark text inside containers to warm palette */
+.orion-dashboard-content div[class*="bg-slate-800"] h3.text-slate-300,
+.orion-dashboard-content div[class*="bg-slate-800"] h4.text-white,
+.orion-dashboard-content div[class*="bg-slate-800"] h3.text-white,
+.orion-dashboard-content div[class*="bg-slate-800"] p.text-white,
+.orion-dashboard-content div[class*="bg-slate-800"] span.text-white {
+  color: var(--orion-ink) !important;
+}
+
+/* Remap action text inside dark cards */
+.orion-dashboard-content div[class*="bg-slate-800"] span.text-slate-300,
+.orion-dashboard-content div[class*="bg-slate-800"] p.text-slate-300 {
+  color: #5a5347 !important;
+}
+
+.orion-dashboard-content div[class*="bg-slate-800"] span.text-slate-400,
+.orion-dashboard-content div[class*="bg-slate-800"] span.text-slate-500,
+.orion-dashboard-content div[class*="bg-slate-800"] span.text-slate-600,
+.orion-dashboard-content div[class*="bg-slate-800"] p.text-slate-500,
+.orion-dashboard-content div[class*="bg-slate-800"] p.text-slate-600 {
+  color: var(--orion-muted) !important;
+}
+
+/* Inner dark containers (plan hash, code blocks) stay darker */
+.orion-dashboard-content div[class*="bg-slate-900/60"] {
+  background-color: #ede1d0 !important;
+  border-color: var(--orion-line) !important;
+}
+
+/* Textarea/input inside dark panels */
+.orion-dashboard-content textarea[class*="bg-slate-900"],
+.orion-dashboard-content input[class*="bg-slate-900"] {
+  background-color: #fff !important;
+  border-color: var(--orion-line) !important;
+  color: var(--orion-ink) !important;
+}
+.orion-dashboard-content textarea::placeholder,
+.orion-dashboard-content input::placeholder {
+  color: #a09688 !important;
+}
+
+/* Empty state dashed borders */
+.orion-dashboard-content div[class*="border-dashed"][class*="border-slate-700"] {
+  border-color: var(--orion-line) !important;
+  color: var(--orion-muted) !important;
+}
+
+/* ───── Responsive ───── */
 @media (max-width: 860px) {
   .orion-dashboard { grid-template-columns: 1fr; }
   .orion-sidebar { position: static; height: auto; padding: 18px; border-right: 0; border-bottom: 1px solid var(--orion-line); }

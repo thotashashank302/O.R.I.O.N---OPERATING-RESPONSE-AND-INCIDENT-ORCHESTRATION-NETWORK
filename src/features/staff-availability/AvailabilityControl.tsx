@@ -31,32 +31,32 @@ const STATE_CONFIG: Record<
 > = {
   available: {
     label: "Available",
-    color: "text-emerald-400",
-    bg: "bg-emerald-500/20 border-emerald-500/50 hover:bg-emerald-500/30",
+    color: "text-emerald-700",
+    bg: "bg-emerald-50 border-emerald-300 hover:bg-emerald-100",
     description: "Eligible for new assignments",
   },
   busy: {
     label: "Busy",
-    color: "text-amber-400",
-    bg: "bg-amber-500/20 border-amber-500/50 hover:bg-amber-500/30",
+    color: "text-amber-700",
+    bg: "bg-amber-50 border-amber-300 hover:bg-amber-100",
     description: "Currently occupied — excluded from new routine work",
   },
   off_duty: {
     label: "Off Duty",
-    color: "text-slate-400",
-    bg: "bg-slate-500/20 border-slate-500/50 hover:bg-slate-500/30",
+    color: "text-stone-600",
+    bg: "bg-stone-50 border-stone-300 hover:bg-stone-100",
     description: "Not accepting any new work",
   },
 };
 
 function OpenTaskModal({ tasks, onChoice, onCancel }: OpenTaskModalProps) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-      <div className="w-full max-w-md rounded-2xl border border-slate-700 bg-slate-900 p-6 shadow-2xl">
-        <h3 className="mb-2 text-lg font-semibold text-white">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+      <div className="w-full max-w-md rounded-2xl border border-stone-200 bg-white p-6 shadow-2xl">
+        <h3 className="mb-2 text-lg font-semibold">
           You have open tasks
         </h3>
-        <p className="mb-4 text-sm text-slate-400">
+        <p className="mb-4 text-sm text-stone-500">
           You have {tasks.length} active task{tasks.length !== 1 ? "s" : ""}.
           Going off duty without handling them will impact incident resolution.
         </p>
@@ -65,12 +65,12 @@ function OpenTaskModal({ tasks, onChoice, onCancel }: OpenTaskModalProps) {
           {tasks.map((t) => (
             <li
               key={t.id}
-              className="rounded-lg border border-slate-700 bg-slate-800 px-4 py-2 text-sm text-slate-300"
+              className="rounded-lg border border-stone-200 bg-stone-50 px-4 py-2 text-sm text-stone-700"
             >
-              <span className="font-medium text-white">
+              <span className="font-medium">
                 {t.incident?.title ?? t.task_id}
               </span>
-              <span className="ml-2 rounded-full bg-slate-700 px-2 py-0.5 text-xs capitalize">
+              <span className="ml-2 rounded-full bg-stone-200 px-2 py-0.5 text-xs capitalize">
                 {t.state}
               </span>
             </li>
@@ -80,27 +80,27 @@ function OpenTaskModal({ tasks, onChoice, onCancel }: OpenTaskModalProps) {
         <div className="flex flex-col gap-3">
           <button
             onClick={() => onChoice("handover")}
-            className="w-full rounded-xl border border-amber-500/40 bg-amber-500/10 py-3 text-sm font-medium text-amber-300 transition-all hover:bg-amber-500/20"
+            className="w-full rounded-xl border border-amber-300 bg-amber-50 py-3 text-sm font-medium text-amber-800 transition-all hover:bg-amber-100"
           >
             Request Handover
-            <p className="mt-0.5 text-xs font-normal text-amber-400/70">
+            <p className="mt-0.5 text-xs font-normal text-amber-600">
               Tasks stay with accountable owner until replacement accepts
             </p>
           </button>
 
           <button
             onClick={() => onChoice("keep")}
-            className="w-full rounded-xl border border-slate-600 bg-slate-800 py-3 text-sm font-medium text-slate-300 transition-all hover:bg-slate-700"
+            className="w-full rounded-xl border border-stone-200 bg-stone-50 py-3 text-sm font-medium text-stone-700 transition-all hover:bg-stone-100"
           >
             Keep Current Tasks
-            <p className="mt-0.5 text-xs font-normal text-slate-500">
+            <p className="mt-0.5 text-xs font-normal text-stone-500">
               You will remain responsible for these tasks
             </p>
           </button>
 
           <button
             onClick={onCancel}
-            className="text-sm text-slate-500 hover:text-slate-400"
+            className="text-sm text-stone-400 hover:text-stone-600"
           >
             Cancel
           </button>
@@ -188,13 +188,13 @@ export function AvailabilityControl({
         />
       )}
 
-      <div className="rounded-2xl border border-slate-700/50 bg-slate-800/50 p-5 backdrop-blur-sm">
+      <div className="rounded-2xl border border-stone-200 bg-white/80 p-5">
         <div className="mb-4 flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-slate-300">
+          <h3 className="text-sm font-semibold">
             My Availability
           </h3>
           {isPending && (
-            <span className="text-xs text-slate-500">Saving…</span>
+            <span className="text-xs text-stone-500">Saving…</span>
           )}
         </div>
 
@@ -210,22 +210,22 @@ export function AvailabilityControl({
                 className={`
                   relative rounded-xl border px-3 py-4 text-left transition-all duration-200
                   ${isActive
-                    ? `${config.bg} ring-2 ring-offset-2 ring-offset-slate-900 ${
+                    ? `${config.bg} ring-2 ring-offset-2 ring-offset-white ${
                         state === "available"
                           ? "ring-emerald-500"
                           : state === "busy"
                           ? "ring-amber-500"
-                          : "ring-slate-500"
+                          : "ring-stone-400"
                       }`
-                    : "border-slate-700 bg-slate-800/60 hover:border-slate-600 hover:bg-slate-700/60"
+                    : "border-stone-200 bg-stone-50 hover:border-stone-300 hover:bg-stone-100"
                   }
                   disabled:cursor-default
                 `}
               >
-                <span className={`block text-sm font-semibold ${isActive ? config.color : "text-slate-300"}`}>
+                <span className={`block text-sm font-semibold ${isActive ? config.color : "text-stone-600"}`}>
                   {config.label}
                 </span>
-                <span className="mt-1 block text-xs text-slate-500 leading-tight">
+                <span className="mt-1 block text-xs text-stone-500 leading-tight">
                   {config.description}
                 </span>
                 {isActive && (
@@ -237,7 +237,7 @@ export function AvailabilityControl({
         </div>
 
         {error && (
-          <p className="mt-3 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-400">
+          <p className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
             {error}
           </p>
         )}
