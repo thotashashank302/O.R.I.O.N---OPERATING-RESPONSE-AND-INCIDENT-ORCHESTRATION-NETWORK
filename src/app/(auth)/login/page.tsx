@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/features/auth/supabase-browser";
 import { fetchAuthenticatedContexts } from "@/features/auth/context";
@@ -50,71 +51,48 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen w-full flex flex-col md:flex-row bg-[#070B14] text-slate-100 antialiased selection:bg-cyan-500 selection:text-black">
-      {/* Left Hero Column (Architectural Operations Aesthetic) */}
-      <div className="relative md:w-7/12 flex flex-col justify-between p-8 md:p-14 bg-gradient-to-br from-[#0B132B] via-[#070B14] to-[#040810] border-b md:border-b-0 md:border-r border-slate-800/60 overflow-hidden">
-        {/* Subtle Architectural Glow & Grid */}
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_25%,rgba(56,189,248,0.08),transparent_50%)] pointer-events-none" />
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] pointer-events-none" />
+    <div className="min-h-screen w-full flex flex-col md:flex-row bg-[#07101c] text-white antialiased selection:bg-cyan-300 selection:text-[#07101c]">
+      <div className="relative min-h-[42vh] md:min-h-screen md:w-[58%] flex flex-col justify-between p-7 sm:p-10 lg:p-14 overflow-hidden">
+        <Image
+          src="/images/orion-campus-login.webp"
+          alt="Modern university campus building at night"
+          fill
+          priority
+          sizes="(max-width: 768px) 100vw, 58vw"
+          className="object-cover object-center"
+        />
+        <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(3,12,22,.28),rgba(3,12,22,.1)_55%,rgba(3,12,22,.48)),linear-gradient(0deg,rgba(2,8,16,.92),transparent_48%,rgba(2,8,16,.36))]" />
 
-        {/* Top Branding */}
         <div className="relative z-10 flex items-center gap-3">
-          <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 shadow-[0_0_10px_#22d3ee] animate-pulse" />
-          <span className="font-mono text-sm tracking-widest text-slate-200 uppercase font-semibold">
-            ORION
+          <span className="grid h-6 w-6 place-items-center border border-white/35 bg-black/20">
+            <span className="h-1.5 w-1.5 rounded-full bg-[#63b5d7]" />
           </span>
-          <span className="text-xs font-mono tracking-widest text-slate-400 uppercase">
-            CAMPUS OPERATIONS
-          </span>
+          <span className="text-[13px] tracking-[.19em] text-white uppercase font-semibold">ORION</span>
+          <span className="text-[10px] tracking-[.18em] text-white/58 uppercase">Campus Operations</span>
         </div>
 
-        {/* Hero Imagery Simulator / Architectural Card */}
-        <div className="relative z-10 my-12 rounded-2xl border border-slate-800/80 bg-slate-900/40 backdrop-blur-md p-6 shadow-2xl">
-          <div className="flex items-center justify-between pb-4 border-b border-slate-800/60 text-xs font-mono text-slate-400">
-            <span className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-emerald-400" />
-              NODE ACTIVE
-            </span>
-            <span>LATENCY: 14ms</span>
+        <div className="relative z-10 max-w-lg">
+          <p className="mb-4 text-[10px] uppercase tracking-[.18em] text-white/65">North campus · Operations node 03</p>
+          <h1 className="font-[Georgia] text-[clamp(1.6rem,2.4vw,2.65rem)] leading-[1.12] tracking-[-.025em] text-white">
+            One console for facilities, access, incidents and scheduling across every building.
+          </h1>
+          <div className="mt-7 flex flex-wrap gap-x-7 gap-y-2 border-t border-white/20 pt-4 text-[11px] text-white/65">
+            <span><strong className="mr-1 text-white">4 agents</strong> with bounded tools</span>
+            <span><strong className="mr-1 text-white">Human</strong> verification enforced</span>
           </div>
-          <div className="py-6">
-            <div className="text-xs font-mono uppercase tracking-widest text-cyan-400 mb-2">
-              NORTH CAMPUS · OPERATIONS NODE 03
-            </div>
-            <h1 className="text-2xl md:text-3xl font-semibold text-white leading-tight">
-              One console for facilities, access, incidents and scheduling across every building.
-            </h1>
-          </div>
-          <div className="flex items-center gap-6 pt-4 border-t border-slate-800/60 text-xs text-slate-400">
-            <div>
-              <span className="text-white font-semibold block">4 Autonomous Agents</span>
-              Featherless Reasoning
-            </div>
-            <div className="border-l border-slate-800/60 pl-6">
-              <span className="text-white font-semibold block">College Isolation</span>
-              Strict Role Scope
-            </div>
-          </div>
-        </div>
-
-        {/* Bottom Status */}
-        <div className="relative z-10 text-xs font-mono text-slate-500">
-          SYSTEM CLOCK: UTC+05:30 (ASIA/KOLKATA) · SECURE PROTOCOL v2.0
         </div>
       </div>
 
-      {/* Right Form Column (Sign In Card) */}
-      <div className="md:w-5/12 flex flex-col justify-between p-8 md:p-14 bg-[#070B14]">
+      <div className="md:w-[42%] flex flex-col justify-between p-7 sm:p-10 lg:p-14 bg-[#07101c]">
         <div className="max-w-md w-full mx-auto my-auto py-8">
-          {/* Badge */}
-          <div className="text-[11px] font-mono font-medium tracking-widest text-cyan-400 uppercase mb-3">
+          <div className="text-[10px] font-medium tracking-[.18em] text-[#79bad4] uppercase mb-5">
             AUTHORIZED PERSONNEL
           </div>
 
-          <h2 className="text-2xl md:text-3xl font-bold text-white tracking-tight mb-2">
+          <h2 className="font-[Georgia] text-3xl md:text-[2.15rem] font-normal text-white tracking-[-.025em] mb-2">
             Sign in to ORION
           </h2>
-          <p className="text-sm text-slate-400 mb-8">
+          <p className="text-sm text-slate-400 mb-9">
             Use your institutional credentials to continue.
           </p>
 
@@ -136,7 +114,7 @@ export default function LoginPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="name@university.edu"
-                className="w-full px-4 py-3 rounded-lg bg-slate-900/80 border border-slate-800 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-all"
+                className="w-full px-4 py-3.5 rounded-md bg-[#0a1422] border border-slate-700/70 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-[#63b5d7] focus:ring-1 focus:ring-[#63b5d7] transition-all"
               />
             </div>
 
@@ -159,7 +137,7 @@ export default function LoginPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••••••"
-                  className="w-full px-4 py-3 pr-10 rounded-lg bg-slate-900/80 border border-slate-800 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-all"
+                  className="w-full px-4 py-3.5 pr-10 rounded-md bg-[#0a1422] border border-slate-700/70 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-[#63b5d7] focus:ring-1 focus:ring-[#63b5d7] transition-all"
                 />
                 <button
                   type="button"
@@ -195,7 +173,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3 px-4 rounded-lg bg-[#38BDF8] hover:bg-[#0EA5E9] text-[#070B14] font-semibold text-sm flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(56,189,248,0.25)] transition-all disabled:opacity-50"
+              className="w-full py-3.5 px-4 rounded-md bg-[#63b5d7] hover:bg-[#75c3e1] text-[#06101c] font-semibold text-sm flex items-center justify-center gap-2 shadow-[0_12px_30px_rgba(35,113,147,.2)] transition-all disabled:opacity-50"
             >
               {loading ? "Authenticating..." : "Continue →"}
             </button>
