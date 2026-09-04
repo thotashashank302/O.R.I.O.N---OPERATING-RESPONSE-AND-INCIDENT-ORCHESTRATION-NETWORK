@@ -5,7 +5,7 @@ import { createProductionWorker } from "@/server/orchestration/production-worker
 import { secretMatches } from "@/server/security/secrets";
 
 export const runtime = "nodejs";
-export const maxDuration = 30;
+export const maxDuration = 60;
 
 function isAuthorized(request: Request): boolean {
   const supplied = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ?? null;
