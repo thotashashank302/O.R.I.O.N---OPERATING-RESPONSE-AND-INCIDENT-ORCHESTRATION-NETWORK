@@ -5,7 +5,7 @@ import { createProductionWorker } from "@/server/orchestration/production-worker
 import { secretMatches } from "@/server/security/secrets";
 
 export const runtime = "nodejs";
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 function isAuthorized(request: Request): boolean {
   const supplied = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ?? null;
@@ -34,3 +34,4 @@ async function handleTick(request: Request) {
 export const GET = handleTick;
 // Manual/external triggers use POST
 export const POST = handleTick;
+

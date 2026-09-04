@@ -40,7 +40,7 @@ export class DurableJobWorker {
   constructor(
     private readonly store: JobStore,
     private readonly handlers: Partial<Record<JobType, JobHandler>>,
-    private readonly options = { maxAttempts: 3, leaseSeconds: 45, batchSize: 5, budgetMs: 20_000 },
+    private readonly options = { maxAttempts: 3, leaseSeconds: 290, batchSize: 5, budgetMs: 250_000 },
   ) {}
 
   async tick(workerId: string, startedAt = Date.now()): Promise<WorkerResult> {
