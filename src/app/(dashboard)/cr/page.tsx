@@ -54,7 +54,7 @@ export default function CRDashboardPage() {
   }, [activeContext]);
 
   if (contextState.loading || !activeContext) {
-    return <div className="p-8 text-center text-gray-500">{contextState.error ?? 'Loading your class context…'}</div>;
+    return <div className="p-8 text-center text-stone-500">{contextState.error ?? 'Loading your class context…'}</div>;
   }
 
   const pendingVerificationIncidents = incidents.filter(
@@ -62,56 +62,34 @@ export default function CRDashboardPage() {
   );
 
   return (
-    <div className="max-w-5xl mx-auto p-6 space-y-6">
-      {/* Header */}
-      <div className="bg-slate-900 text-white p-6 rounded-2xl flex items-center justify-between flex-wrap gap-4">
+    <div className="space-y-6 px-4 py-8 sm:px-8">
+      {/* Header — warm institutional */}
+      <div className="rounded-2xl border border-stone-200 bg-white/80 p-6 flex items-center justify-between flex-wrap gap-4">
         <div>
-          <span className="px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 font-mono text-xs uppercase">
+          <span className="px-2.5 py-0.5 rounded-full bg-cyan-50 text-cyan-700 border border-cyan-200 font-mono text-[10px] uppercase tracking-wider font-semibold">
             Class Representative Portal
           </span>
-          <h1 className="text-2xl font-black mt-1">Classroom & Section Coordination</h1>
-          <p className="text-xs text-slate-400 mt-1">
+          <h1 className="text-xl font-bold mt-2">Classroom & Section Coordination</h1>
+          <p className="text-xs text-stone-500 mt-1">
             Authorized to lodge routine class infrastructure requests and verify technician physical repairs.
           </p>
         </div>
 
         <button
           onClick={() => setShowReportModal(true)}
-          className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 font-bold text-white rounded-xl text-xs transition"
+          className="px-4 py-2.5 bg-stone-800 hover:bg-stone-700 font-bold text-white rounded-xl text-xs transition"
         >
           + Report Class Issue
         </button>
       </div>
 
-      {/* Section View Filters */}
-      <div className="flex items-center gap-2 border-b border-stone-200 pb-3">
-        <a
-          href="/cr"
-          className="px-3.5 py-1.5 rounded-lg text-xs font-medium bg-stone-200 text-stone-800 hover:bg-stone-300 transition"
-        >
-          Section Desk (All)
-        </a>
-        <a
-          href="/cr#incidents"
-          className="px-3.5 py-1.5 rounded-lg text-xs font-medium bg-stone-100 text-stone-700 hover:bg-stone-200 transition"
-        >
-          Issue Feed ({incidents.length})
-        </a>
-        <a
-          href="/cr#verification"
-          className="px-3.5 py-1.5 rounded-lg text-xs font-medium bg-emerald-50 text-emerald-800 border border-emerald-200 hover:bg-emerald-100 transition"
-        >
-          Verification Desk ({pendingVerificationIncidents.length})
-        </a>
-      </div>
-
       {/* CR Verifications Section */}
       <div id="verification" className="scroll-mt-6 space-y-3">
         <div className="flex items-center justify-between">
-          <h2 className="text-base font-bold text-gray-900 flex items-center gap-2">
+          <h2 className="text-base font-bold flex items-center gap-2">
             <span>📋 Verification Desk</span>
             {pendingVerificationIncidents.length > 0 && (
-              <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 animate-pulse">
+              <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-800 border border-emerald-200 animate-pulse">
                 {pendingVerificationIncidents.length} Pending
               </span>
             )}
@@ -119,8 +97,8 @@ export default function CRDashboardPage() {
         </div>
 
         {pendingVerificationIncidents.length > 0 ? (
-          <div className="p-5 bg-emerald-50 border border-emerald-200 rounded-2xl space-y-3">
-            <div className="flex items-center gap-2 text-emerald-900 font-bold text-sm">
+          <div className="p-5 bg-emerald-50/80 border border-emerald-200 rounded-2xl space-y-3">
+            <div className="flex items-center gap-2 text-emerald-800 font-bold text-sm">
               <span>⚡</span>
               <span>
                 {pendingVerificationIncidents.length} Issue(s) Repaired by Staff — Awaiting CR Verification
@@ -153,9 +131,9 @@ export default function CRDashboardPage() {
 
       {/* Routine issues stream */}
       <div id="incidents" className="scroll-mt-6 space-y-3">
-        <h2 className="text-base font-bold text-gray-900">All Classroom & Department Issues</h2>
+        <h2 className="text-base font-bold">All Classroom & Department Issues</h2>
         {loading ? (
-          <div className="text-center py-8 text-gray-400 text-sm">Loading department feed...</div>
+          <div className="text-center py-8 text-stone-400 text-sm">Loading department feed...</div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {incidents.map((incident) => (
@@ -172,11 +150,11 @@ export default function CRDashboardPage() {
 
       {/* Modal */}
       {showReportModal && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
           <div className="relative w-full max-w-xl my-8">
             <button
               onClick={() => setShowReportModal(false)}
-              className="absolute top-4 right-4 z-10 text-gray-400 hover:text-gray-600 font-bold text-lg"
+              className="absolute top-4 right-4 z-10 text-stone-400 hover:text-stone-600 font-bold text-lg"
             >
               ✕
             </button>
