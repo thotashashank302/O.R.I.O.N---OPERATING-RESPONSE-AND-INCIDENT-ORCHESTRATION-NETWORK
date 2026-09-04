@@ -12,6 +12,7 @@ import { createClient } from "@/server/db/client";
 import { getStaffAssignments } from "@/server/operations/assignments";
 import { getAvailability } from "@/server/operations/availability";
 import { AvailabilityControl } from "@/features/staff-availability/AvailabilityControl";
+import { AssignmentActionButton } from "@/features/operations/AssignmentActionButton";
 import type { Assignment } from "@/contracts/operations";
 
 const SEVERITY_BADGE: Record<string, string> = {
@@ -122,7 +123,7 @@ function AssignmentCard({ assignment }: { assignment: Assignment }) {
       {/* Action buttons */}
       <div className="mt-4 flex flex-wrap gap-2">
         {assignment.state === "offered" && (
-          <ActionButton
+          <AssignmentActionButton
             assignmentId={assignment.id}
             action="acknowledge"
             version={assignment.version}
@@ -131,7 +132,7 @@ function AssignmentCard({ assignment }: { assignment: Assignment }) {
           />
         )}
         {assignment.state === "acknowledged" && (
-          <ActionButton
+          <AssignmentActionButton
             assignmentId={assignment.id}
             action="start"
             version={assignment.version}
@@ -141,7 +142,7 @@ function AssignmentCard({ assignment }: { assignment: Assignment }) {
         )}
         {assignment.state === "active" && (
           <>
-            <ActionButton
+            <AssignmentActionButton
               assignmentId={assignment.id}
               action="handover"
               version={assignment.version}
@@ -152,51 +153,6 @@ function AssignmentCard({ assignment }: { assignment: Assignment }) {
         )}
       </div>
     </div>
-  );
-}
-
-function ActionButton({
-  assignmentId,
-  action,
-  version,
-  label,
-  color,
-}: {
-  assignmentId: string;
-  action: string;
-  version: number;
-  label: string;
-  color: "cyan" | "emerald" | "amber" | "red";
-}) {
-  const colorMap = {
-    cyan: "border-cyan-500/30 bg-cyan-500/10 text-cyan-400 hover:bg-cyan-500/20",
-    emerald: "border-emerald-500/30 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20",
-    amber: "border-amber-500/30 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20",
-    red: "border-red-500/30 bg-red-500/10 text-red-400 hover:bg-red-500/20",
-  };
-
-  return (
-    <form
-      action={async () => {
-        "use server";
-        // Handled client-side via fetch in production; this is a fallback
-      }}
-    >
-      <button
-        type="button"
-        onClick={async () => {
-          await fetch(`/api/assignments/${assignmentId}/actions`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ action, expected_version: version }),
-          });
-          window.location.reload();
-        }}
-        className={`rounded-xl border px-4 py-2 text-xs font-semibold transition-all ${colorMap[color]}`}
-      >
-        {label}
-      </button>
-    </form>
   );
 }
 

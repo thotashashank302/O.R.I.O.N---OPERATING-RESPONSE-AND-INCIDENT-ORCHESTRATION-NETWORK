@@ -128,33 +128,8 @@ export default function AdminDashboardPage() {
               </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-2">
-              {[
-                { dept: "Computer Science", sec: "Section A", s1: "Rahul Verma (2024CSB101)", s2: "Pooja Sharma (2024CSB102)", status: "Full" },
-                { dept: "Computer Science", sec: "Section B", s1: "Aditya Roy (2024CSB201)", s2: "Open Seat 2", status: "1 Seat Available" },
-                { dept: "Electrical Engg", sec: "Section A", s1: "Sneha Nair (2024EEA101)", s2: "Kiran Patel (2024EEA102)", status: "Full" },
-              ].map((s, idx) => (
-                <div key={idx} className="p-4 rounded-xl bg-slate-950/70 border border-slate-800 space-y-2 text-xs">
-                  <div className="flex items-center justify-between">
-                    <span className="font-semibold text-white">{s.dept}</span>
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-mono bg-cyan-950 text-cyan-300 border border-cyan-800">
-                      {s.sec}
-                    </span>
-                  </div>
-                  <div className="space-y-1 text-slate-300 pt-2 border-t border-slate-850">
-                    <div className="flex items-center gap-2">
-                      <span className="font-mono text-[10px] text-cyan-400 font-bold">SEAT 1:</span>
-                      <span className="truncate">{s.s1}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-mono text-[10px] text-purple-400 font-bold">SEAT 2:</span>
-                      <span className={s.s2.includes("Open") ? "text-amber-400 italic" : "truncate"}>
-                        {s.s2}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              ))}
+            <div className="mt-2 border border-dashed border-slate-700 p-6 text-sm text-slate-400">
+              Current CR appointments are shown from live grants in the Membership &amp; Role Matrix. Select a verified member there to assign or replace Seat 1 or Seat 2; ORION never fills this view with example identities.
             </div>
           </div>
         )}
