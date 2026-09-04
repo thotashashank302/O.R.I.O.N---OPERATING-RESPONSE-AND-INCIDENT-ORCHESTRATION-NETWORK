@@ -21,7 +21,7 @@ export async function requireRequestContext(request: Request, requiredRoles: rea
         .eq("id", selectedMembershipId).eq("user_id", userId).single();
       if (!membership) return null;
       const { data: grants } = await admin.from("role_grants")
-        .select("role,department_id,starts_at,ends_at,revoked_at")
+        .select("role,department_id,section_id,starts_at,ends_at,revoked_at")
         .eq("membership_id", selectedMembershipId);
       return {
         id: membership.id,
@@ -31,6 +31,7 @@ export async function requireRequestContext(request: Request, requiredRoles: rea
         roles: (grants ?? []).map((grant) => ({
           role: grant.role as Role,
           departmentId: grant.department_id,
+          sectionId: grant.section_id,
           startsAt: new Date(grant.starts_at),
           endsAt: grant.ends_at ? new Date(grant.ends_at) : null,
           revokedAt: grant.revoked_at ? new Date(grant.revoked_at) : null,

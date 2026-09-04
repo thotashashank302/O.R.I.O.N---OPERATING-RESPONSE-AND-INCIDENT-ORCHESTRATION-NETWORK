@@ -40,8 +40,8 @@ export default function IncidentVoteButton({
       const res = await fetch(`/api/incidents/${incidentId}/vote`, {
         method,
         headers: {
-          'x-institution-id': institutionId,
-          'x-member-id': memberId,
+          'x-orion-institution-id': institutionId,
+          'x-orion-membership-id': memberId,
         },
       });
 

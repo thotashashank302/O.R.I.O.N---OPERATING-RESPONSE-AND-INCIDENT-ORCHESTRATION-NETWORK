@@ -53,12 +53,20 @@ export async function supervisorCancelWork(
     throw Object.assign(new Error("Stale version — reload and try again"), { status: 409 });
   }
 
+  const { data: plans } = await supabase.from("incident_plans")
+    .select("id").eq("incident_id", incidentId).eq("institution_id", incident.institution_id);
+  const planIds = (plans ?? []).map((plan) => plan.id);
+  const { data: incidentTasks } = planIds.length > 0
+    ? await supabase.from("incident_tasks").select("id").in("plan_id", planIds)
+    : { data: [] };
+  const incidentTaskIds = (incidentTasks ?? []).map((task) => task.id);
+
   // Get pending/offered assignments (safe to cancel)
   const { data: cancelableAssignments } = await supabase
     .from("assignments")
     .select("id, task_id, state, active_version")
     .in("state", ["offered"]) // only unacknowledged — active requires disposition
-    .eq("incident_id", incidentId);
+    .in("task_id", incidentTaskIds.length > 0 ? incidentTaskIds : ["00000000-0000-0000-0000-000000000000"]);
 
   const assignmentIds: string[] = [];
   const taskIds: string[] = [];
@@ -66,7 +74,7 @@ export async function supervisorCancelWork(
   for (const assignment of cancelableAssignments ?? []) {
     await supabase
       .from("assignments")
-      .update({ state: "cancelled", updated_at: now })
+      .update({ state: "cancelled", active_version: false, updated_at: now })
       .eq("id", assignment.id);
     assignmentIds.push(assignment.id);
 
@@ -97,26 +105,28 @@ export async function supervisorCancelWork(
   const auditId = randomUUID();
   await supabase.from("audit_events").insert({
     id: auditId,
+    institution_id: incident.institution_id,
     actor_membership_id: supervisorMembershipId,
-    entity_type: "incident",
-    entity_id: incidentId,
-    previous_value: { version: expectedVersion, state: incident.state },
-    new_value: {
-      action: "supervisor_cancellation",
+    action: "supervisor_cancellation",
+    target_type: "incident",
+    target_id: incidentId,
+    safe_payload: {
+      previous: { version: expectedVersion, state: incident.state },
       cancelled_assignments: assignmentIds.length,
       cancelled_tasks: taskIds.length,
+      reason,
     },
-    reason,
     created_at: now,
   });
 
   // Incident event
   await supabase.from("incident_events").insert({
-    entity_type: "incident",
-    entity_id: incidentId,
+    institution_id: incident.institution_id,
+    incident_id: incidentId,
     actor_membership_id: supervisorMembershipId,
-    event_type: "supervisor_cancellation",
-    payload: { reason, cancelled_assignments: assignmentIds, cancelled_tasks: taskIds },
+    actor_type: "human",
+    action: "supervisor_cancellation",
+    safe_payload: { reason, cancelled_assignments: assignmentIds, cancelled_tasks: taskIds },
     created_at: now,
   });
 
@@ -143,7 +153,7 @@ export async function replaceAbsentVerifier(
 
   const { data: task, error } = await supabase
     .from("incident_tasks")
-    .select("id, designated_verifier_membership_id, state")
+    .select("id, institution_id, plan_id, designated_verifier_membership_id, state")
     .eq("id", taskId)
     .single();
 
@@ -165,40 +175,45 @@ export async function replaceAbsentVerifier(
     .from("incident_tasks")
     .update({
       designated_verifier_membership_id: newVerifierMembershipId,
-      verifier_deadline: new Date(Date.now() + 20 * 60 * 1000).toISOString(), // fresh 20-min window
+      verifier_due_at: new Date(Date.now() + 20 * 60 * 1000).toISOString(), // fresh 20-min window
       updated_at: now,
     })
     .eq("id", taskId);
 
   // Audit event
   await supabase.from("audit_events").insert({
+    institution_id: task.institution_id,
     actor_membership_id: actorMembershipId,
-    entity_type: "incident_task",
-    entity_id: taskId,
-    previous_value: { designated_verifier_membership_id: previousVerifier },
-    new_value: { designated_verifier_membership_id: newVerifierMembershipId },
-    reason,
-    created_at: now,
-  });
-
-  // Incident event
-  await supabase.from("incident_events").insert({
-    entity_type: "task",
-    entity_id: taskId,
-    actor_membership_id: actorMembershipId,
-    event_type: "verifier_replaced",
-    payload: {
-      previous_verifier: previousVerifier,
-      new_verifier: newVerifierMembershipId,
+    action: "verifier_replaced",
+    target_type: "incident_task",
+    target_id: taskId,
+    safe_payload: {
+      previous: { designated_verifier_membership_id: previousVerifier },
+      next: { designated_verifier_membership_id: newVerifierMembershipId },
       reason,
     },
     created_at: now,
   });
 
+  const { data: plan } = await supabase.from("incident_plans")
+    .select("incident_id").eq("id", task.plan_id).maybeSingle();
+  if (plan?.incident_id) {
+    await supabase.from("incident_events").insert({
+      institution_id: task.institution_id,
+      incident_id: plan.incident_id,
+      actor_membership_id: actorMembershipId,
+      actor_type: "human",
+      action: "verifier_replaced",
+      safe_payload: { task_id: taskId, previous_verifier: previousVerifier, new_verifier: newVerifierMembershipId, reason },
+      created_at: now,
+    });
+  }
+
   // Notify new verifier
   await supabase.from("notifications").insert({
+    institution_id: task.institution_id,
     recipient_membership_id: newVerifierMembershipId,
-    text: `You have been assigned as verifier for task ${taskId}. Please review and confirm within 20 minutes.`,
+    safe_text: `You have been assigned as verifier for task ${taskId}. Please review and confirm within 20 minutes.`,
     link: `/incidents/${taskId}`,
     created_at: now,
   });

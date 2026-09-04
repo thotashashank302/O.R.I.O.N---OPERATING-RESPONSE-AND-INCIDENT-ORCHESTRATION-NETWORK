@@ -81,7 +81,7 @@ describe("runVerificationAgent — safety overrides", () => {
     id: "ev-1",
     task_id: "task-123",
     uploader_membership_id: "mem-1",
-    kind: "functional_test",
+    kind: "test_result",
     content: "Equipment tested and confirmed working",
     evidence_version: 1,
     created_at: new Date().toISOString(),

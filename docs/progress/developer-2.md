@@ -8,7 +8,7 @@
 | Part | Task | Status | Notes |
 |------|------|--------|-------|
 | A1 | College-scoped registration & session checks | ✅ verified | `src/server/identity/roster.ts`, `src/app/(auth)/login/page.tsx`, `src/app/(auth)/register/page.tsx` |
-| A2 | Principal bootstrap & authorization | ✅ verified | `src/server/identity/institutions.ts`, `src/server/identity/roles.ts`, 2 CR seats enforced |
+| A2 | Principal bootstrap & authorization | ✅ integrated | Approval requires a fresh selected principal/admin context; 2 CR seats enforced |
 | A3 | Administration UI & Context Switching | ✅ verified | `src/app/(dashboard)/admin/page.tsx`, `src/app/(dashboard)/principal/page.tsx`, `ContextSwitcher.tsx` |
 | B1 | Campus configuration | ✅ verified | `src/server/identity/locations.ts`, `src/app/api/locations/route.ts`, category-handler mappings |
 | B2 | Staff & confidential-case eligibility | ✅ verified | `src/server/identity/eligibility.ts`, RP-03 confidential ACL |
@@ -63,7 +63,7 @@
 | Endpoint | Method | Owner | Description |
 |----------|--------|-------|-------------|
 | `/api/institutions` | POST / GET | D2 | Create / list approved institutions |
-| `/api/institutions/[id]/approve` | POST | D2 | Demo bootstrap allowlisted approval |
+| `/api/institutions/[id]/approve` | POST | D2 | Fresh principal/admin approval in the selected institution |
 | `/api/locations` | GET / POST | D2 | List / create campus locations |
 | `/api/roster/rows` | POST | D2 | Add single validated student roster entry |
 | `/api/roster/import` | POST | D2 | Bulk CSV/array student roster import |

@@ -4,15 +4,14 @@ import React, { useEffect, useState } from 'react';
 import ReportForm from '@/features/reporting/components/ReportForm';
 import IncidentCard from '@/features/reporting/components/IncidentCard';
 import type { IncidentSummaryProps } from '@/features/reporting/components/IncidentCard';
+import { orionContextHeaders, useActiveContext } from '@/features/identity/use-active-context';
+import type { UserContextItem } from '@/contracts/identity';
 
 type IncidentSummary = IncidentSummaryProps['incident'];
 
-async function fetchIncidents(institutionId: string, memberId: string): Promise<IncidentSummary[]> {
+async function fetchIncidents(context: UserContextItem): Promise<IncidentSummary[]> {
   const response = await fetch('/api/incidents', {
-    headers: {
-      'x-institution-id': institutionId,
-      'x-member-id': memberId,
-    },
+    headers: orionContextHeaders(context),
   });
   const payload = (await response.json()) as { data?: { incidents?: IncidentSummary[] } };
   return response.ok && payload.data?.incidents ? payload.data.incidents : [];
@@ -22,14 +21,13 @@ export default function CRDashboardPage() {
   const [incidents, setIncidents] = useState<IncidentSummary[]>([]);
   const [showReportModal, setShowReportModal] = useState(false);
   const [loading, setLoading] = useState(true);
-
-  const mockInstitutionId = '11111111-1111-4111-a111-111111111111';
-  const mockCRMemberId = 'cr-membership-003';
+  const contextState = useActiveContext();
+  const activeContext = contextState.activeContext;
 
   const loadIncidents = async () => {
     try {
       setLoading(true);
-      setIncidents(await fetchIncidents(mockInstitutionId, mockCRMemberId));
+      if (activeContext) setIncidents(await fetchIncidents(activeContext));
     } catch (err) {
       console.error('Failed to load incidents', err);
     } finally {
@@ -39,7 +37,8 @@ export default function CRDashboardPage() {
 
   useEffect(() => {
     let cancelled = false;
-    fetchIncidents(mockInstitutionId, mockCRMemberId)
+    if (!activeContext) return;
+    fetchIncidents(activeContext)
       .then((nextIncidents) => {
         if (!cancelled) setIncidents(nextIncidents);
       })
@@ -52,7 +51,11 @@ export default function CRDashboardPage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [activeContext]);
+
+  if (contextState.loading || !activeContext) {
+    return <div className="p-8 text-center text-gray-500">{contextState.error ?? 'Loading your class context…'}</div>;
+  }
 
   const pendingVerificationIncidents = incidents.filter(
     (i) => i.state === 'submitted_for_verification'
@@ -97,8 +100,8 @@ export default function CRDashboardPage() {
               <IncidentCard
                 key={inc.id}
                 incident={inc}
-                institutionId={mockInstitutionId}
-                memberId={mockCRMemberId}
+                institutionId={activeContext.institution_id}
+                memberId={activeContext.membership_id}
               />
             ))}
           </div>
@@ -116,8 +119,8 @@ export default function CRDashboardPage() {
               <IncidentCard
                 key={incident.id}
                 incident={incident}
-                institutionId={mockInstitutionId}
-                memberId={mockCRMemberId}
+                institutionId={activeContext.institution_id}
+                memberId={activeContext.membership_id}
               />
             ))}
           </div>
@@ -135,8 +138,8 @@ export default function CRDashboardPage() {
               ✕
             </button>
             <ReportForm
-              institutionId={mockInstitutionId}
-              memberId={mockCRMemberId}
+              institutionId={activeContext.institution_id}
+              memberId={activeContext.membership_id}
               defaultScope="cr"
               onSuccess={() => {
                 loadIncidents();

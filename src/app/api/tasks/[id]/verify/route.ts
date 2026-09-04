@@ -20,6 +20,7 @@ import { createClient } from "@/server/db/client";
 import { runVerificationAgent } from "@/server/agents/verification";
 import type { VerificationContext, ResolutionEvidence } from "@/contracts/operations";
 import { randomUUID } from "crypto";
+import { enqueueCommanderJob } from "@/server/orchestration/commander-enqueue";
 
 const VerifyRequestSchema = z.object({
   evidence_version: z.number().int().positive(),
@@ -54,9 +55,9 @@ export async function POST(
     // Resolve membership
     const { data: membership } = await supabase
       .from("institution_memberships")
-      .select("id, institution_id, state")
+      .select("id, institution_id, status")
       .eq("user_id", user.id)
-      .eq("state", "active")
+      .eq("status", "active")
       .maybeSingle();
 
     if (!membership) {
@@ -80,12 +81,13 @@ export async function POST(
     const { data: task, error: taskError } = await supabase
       .from("incident_tasks")
       .select(`
-        id, plan_id, logical_task_key, specialist_profile, checklist,
+        id, institution_id, plan_id, logical_task_key, specialist_profile, checklist,
         state, evidence_requirements, requires_approval,
-        designated_verifier_membership_id, verifier_deadline,
+        designated_verifier_membership_id, verifier_due_at,
         incident_plans ( incident:incidents ( id, category, version, state ) )
       `)
       .eq("id", taskId)
+      .eq("institution_id", membership.institution_id)
       .single();
 
     if (taskError || !task) {
@@ -112,6 +114,12 @@ export async function POST(
         }
       | null;
     const incident = planRelation?.incident;
+    if (!incident) {
+      return NextResponse.json(
+        { error: { code: "NOT_FOUND", message: "Task incident context not found" }, requestId },
+        { status: 404 }
+      );
+    }
 
     // ── Human result path ──
     if (parsed.data.trigger === "human" && parsed.data.human_result) {
@@ -148,20 +156,20 @@ export async function POST(
         .from("verification_records")
         .insert({
           id: randomUUID(),
+          institution_id: membership.institution_id,
           task_id: taskId,
           evidence_version: parsed.data.evidence_version,
-          human_result: humanResult,
-          agent_verdict: humanResult === "confirmed" ? "verified" : "failed",
-          reasons: [
-            humanResult === "confirmed"
+          human_result: humanResult === "confirmed" ? "pass" : "fail",
+          agent_verdict: humanResult === "confirmed" ? "pass" : "fail",
+          reasons: {
+            reasons: [humanResult === "confirmed"
               ? "Human verifier confirmed satisfactory completion"
-              : parsed.data.rejection_reason ?? "Verifier rejected — reason not provided",
-          ],
-          missing_evidence: [],
-          suggested_replan_reason:
-            humanResult === "rejected"
+              : parsed.data.rejection_reason ?? "Verifier rejected — reason not provided"],
+            missingEvidence: [],
+            suggestedReplanReason: humanResult === "rejected"
               ? parsed.data.rejection_reason ?? "Verification failed — replan required"
               : null,
+          },
           created_at: now,
         })
         .select()
@@ -180,28 +188,21 @@ export async function POST(
 
       // If failed → queue replan job for D1's Commander
       if (humanResult === "rejected") {
-        await supabase.from("jobs").insert({
-          type: "verification_failed",
-          payload: {
-            task_id: taskId,
-            incident_id: incident?.id,
-            evidence_version: parsed.data.evidence_version,
-            reason: parsed.data.rejection_reason ?? "Verification rejected by human",
-          },
-          status: "queued",
-          due_at: now,
-          attempt: 0,
-          dedupe_key: `verify-failed-${taskId}-${parsed.data.evidence_version}`,
-        });
+        await enqueueCommanderJob(
+          incident.id,
+          parsed.data.rejection_reason ?? `Task ${taskId} was rejected by its human verifier`,
+          `human-verification-${taskId}-e${parsed.data.evidence_version}`,
+        );
       }
 
       // Append event
       await supabase.from("incident_events").insert({
-        entity_type: "task",
-        entity_id: taskId,
+        institution_id: membership.institution_id,
+        incident_id: incident?.id,
         actor_membership_id: membership.id,
-        event_type: `human_${humanResult}`,
-        payload: { evidence_version: parsed.data.evidence_version, reason: parsed.data.rejection_reason },
+        actor_type: "human",
+        action: `human_${humanResult}`,
+        safe_payload: { task_id: taskId, evidence_version: parsed.data.evidence_version, reason: parsed.data.rejection_reason },
         created_at: now,
       });
 
@@ -212,11 +213,19 @@ export async function POST(
     // Fetch submitted evidence for this task
     const { data: evidenceRows } = await supabase
       .from("resolution_evidence")
-      .select("id, task_id, uploader_membership_id, kind, content, evidence_version, created_at")
+      .select("id, task_id, uploader_membership_id, kind, storage_key, structured_result, evidence_version, created_at")
       .eq("task_id", taskId)
       .order("evidence_version", { ascending: false });
 
-    const submittedEvidence: ResolutionEvidence[] = (evidenceRows ?? []) as ResolutionEvidence[];
+    const submittedEvidence: ResolutionEvidence[] = (evidenceRows ?? []).map((row) => ({
+      id: row.id,
+      task_id: row.task_id,
+      uploader_membership_id: row.uploader_membership_id,
+      kind: row.kind as ResolutionEvidence["kind"],
+      content: row.storage_key ?? (row.structured_result as { content?: string } | null)?.content ?? "",
+      evidence_version: row.evidence_version,
+      created_at: row.created_at,
+    }));
 
     const incidentCategory = incident?.category ?? "unknown";
     const requiresPhysical = /electrical|fan|ac|door|key|access|security|emergency|safety|plumbing/i.test(incidentCategory);
@@ -233,20 +242,39 @@ export async function POST(
     };
 
     // Run verification agent
-    const decision = await runVerificationAgent(context, requestId);
+    const decision = await runVerificationAgent(context);
+
+    const { error: runError } = await supabase.from("agent_runs").insert({
+      id: requestId,
+      institution_id: membership.institution_id,
+      incident_id: incident.id,
+      agent_name: "verification",
+      provider: "featherless",
+      model: process.env.FEATHERLESS_MODEL ?? "configured-at-runtime",
+      prompt_version: "verification-v1",
+      latency_ms: 0,
+      status: "succeeded",
+      validated_outcome: decision,
+    });
+    if (runError) throw runError;
 
     // Persist verification record
     const { data: verRecord } = await supabase
       .from("verification_records")
       .insert({
         id: randomUUID(),
+        institution_id: membership.institution_id,
         task_id: taskId,
         evidence_version: parsed.data.evidence_version,
         human_result: "pending",
-        agent_verdict: decision.verdict,
-        reasons: decision.reasons,
-        missing_evidence: decision.missing_evidence,
-        suggested_replan_reason: decision.suggested_replan_reason,
+        agent_verdict: decision.verdict === "verified"
+          ? "pass"
+          : decision.verdict === "failed" ? "fail" : "needs_human_review",
+        reasons: {
+          reasons: decision.reasons,
+          missingEvidence: decision.missing_evidence,
+          suggestedReplanReason: decision.suggested_replan_reason,
+        },
         created_at: now,
       })
       .select()
@@ -266,20 +294,11 @@ export async function POST(
         .eq("id", taskId);
 
       // Queue replan
-      await supabase.from("jobs").insert({
-        type: "verification_failed",
-        payload: {
-          task_id: taskId,
-          incident_id: incident?.id,
-          evidence_version: parsed.data.evidence_version,
-          reason: decision.suggested_replan_reason ?? "Agent verification failed",
-          missing_evidence: decision.missing_evidence,
-        },
-        status: "queued",
-        due_at: now,
-        attempt: 0,
-        dedupe_key: `verify-failed-agent-${taskId}-${parsed.data.evidence_version}`,
-      });
+      await enqueueCommanderJob(
+        incident.id,
+        decision.suggested_replan_reason ?? `Task ${taskId} failed agent verification`,
+        `agent-verification-${taskId}-e${parsed.data.evidence_version}`,
+      );
     }
     // pending_human: task stays in "submitted", verifier must respond
 
@@ -290,6 +309,8 @@ export async function POST(
 
       // 10-min reminder
       await supabase.from("jobs").insert({
+        institution_id: membership.institution_id,
+        incident_id: incident?.id,
         type: "verifier_reminder",
         payload: { task_id: taskId, incident_id: incident?.id },
         status: "queued",
@@ -300,6 +321,8 @@ export async function POST(
 
       // 20-min HOD escalation
       await supabase.from("jobs").insert({
+        institution_id: membership.institution_id,
+        incident_id: incident?.id,
         type: "verifier_escalation",
         payload: {
           task_id: taskId,
@@ -315,11 +338,13 @@ export async function POST(
 
     // Append event
     await supabase.from("incident_events").insert({
-      entity_type: "task",
-      entity_id: taskId,
+      institution_id: membership.institution_id,
+      incident_id: incident?.id,
       actor_membership_id: membership.id,
-      event_type: "agent_verification",
-      payload: {
+      actor_type: "human",
+      action: "agent_verification_requested",
+      safe_payload: {
+        task_id: taskId,
         verdict: decision.verdict,
         evidence_version: parsed.data.evidence_version,
         missing_evidence: decision.missing_evidence,

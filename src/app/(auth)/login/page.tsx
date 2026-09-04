@@ -197,25 +197,6 @@ export default function LoginPage() {
               {loading ? "Authenticating..." : "Continue →"}
             </button>
 
-            <div className="relative flex items-center justify-center my-6">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-slate-800" />
-              </div>
-              <span className="relative px-3 bg-[#070B14] text-[11px] font-mono uppercase text-slate-500">
-                OR
-              </span>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => {
-                setEmail("demo.admin@orion.edu");
-                setPassword("demo1234");
-              }}
-              className="w-full py-3 px-4 rounded-lg bg-slate-900/90 hover:bg-slate-800/90 border border-slate-800 text-slate-200 text-xs font-medium transition-all"
-            >
-              Fill Demo Credentials (Admin / Principal)
-            </button>
           </form>
 
           {/* Student Roster Claim Link */}

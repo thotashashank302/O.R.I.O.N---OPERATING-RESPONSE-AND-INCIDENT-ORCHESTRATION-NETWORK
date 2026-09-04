@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revokeRole } from "@/server/identity/roles";
+import { requireRequestContext } from "@/server/auth/request-context";
 
 export async function PATCH(
   req: NextRequest,
@@ -8,16 +9,17 @@ export async function PATCH(
   const requestId = crypto.randomUUID();
   try {
     const { id } = await params;
+    const context = await requireRequestContext(req, ["principal", "admin", "hod"]);
     const body = await req.json();
 
-    const { revoked_by_membership_id, reason, replacement_membership_id } = body;
+    const { reason, replacement_membership_id } = body;
 
-    if (!revoked_by_membership_id || !reason) {
+    if (!reason) {
       return NextResponse.json(
         {
           error: {
             code: "BAD_REQUEST",
-            message: "revoked_by_membership_id and reason are required",
+            message: "reason is required",
           },
           requestId,
         },
@@ -26,7 +28,7 @@ export async function PATCH(
     }
 
     const result = await revokeRole(
-      revoked_by_membership_id,
+      context.membershipId,
       id,
       reason,
       replacement_membership_id

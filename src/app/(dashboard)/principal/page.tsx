@@ -8,29 +8,6 @@ import { RoleGrantModal } from "@/features/role-management/RoleGrantModal";
 
 export default function PrincipalDashboardPage() {
   const [selectedMemberForRole, setSelectedMemberForRole] = useState<MemberItem | null>(null);
-  const [bootstrapStatus, setBootstrapStatus] = useState<string | null>(null);
-  const [approving, setApproving] = useState(false);
-
-  const handleApproveCollege = async () => {
-    setApproving(true);
-    setBootstrapStatus("Approving demo college bootstrap...");
-    try {
-      const res = await fetch("/api/institutions/demo-inst-01/approve", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ admin_email: "principal@orion.edu" }),
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error?.message || "Bootstrap approval failed");
-      setBootstrapStatus("SUCCESS: College 'ORION-DEMO' approved and active for institutional operations.");
-    } catch (err: unknown) {
-      setBootstrapStatus(
-        `Notice: ${err instanceof Error ? err.message : "Bootstrap approval failed"}`
-      );
-    } finally {
-      setApproving(false);
-    }
-  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#0B132B] via-[#070B14] to-[#040810] text-slate-100 antialiased selection:bg-cyan-500 selection:text-black">
@@ -64,28 +41,16 @@ export default function PrincipalDashboardPage() {
         <div className="rounded-2xl border border-cyan-800/60 bg-gradient-to-r from-cyan-950/40 to-slate-900/60 backdrop-blur-xl p-6 shadow-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
           <div className="space-y-1">
             <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 text-[10px] font-mono font-semibold uppercase tracking-wider">
-              DEMO PRINCIPAL BOOTSTRAP
+              PRINCIPAL GOVERNANCE
             </div>
-            <h2 className="text-xl font-bold text-white">ORION Institute of Technology (ORION-DEMO)</h2>
+            <h2 className="text-xl font-bold text-white">Active institution context</h2>
             <p className="text-xs text-slate-400 max-w-2xl">
               Principal maintains highest institutional governance: approves institutions, delegates HOD authority, and reviews safety overrides.
             </p>
           </div>
 
-          <button
-            onClick={handleApproveCollege}
-            disabled={approving}
-            className="px-5 py-2.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs shadow-[0_0_20px_rgba(6,182,212,0.35)] transition-all shrink-0 disabled:opacity-50"
-          >
-            {approving ? "Approving..." : "Re-Verify College Approval"}
-          </button>
+          <span className="text-xs text-cyan-300">Selected through your authenticated membership</span>
         </div>
-
-        {bootstrapStatus && (
-          <div className="p-3.5 rounded-xl bg-slate-900 border border-slate-800 text-xs font-mono text-cyan-300">
-            {bootstrapStatus}
-          </div>
-        )}
 
         {/* Executive Authority & Roles */}
         <MembershipList

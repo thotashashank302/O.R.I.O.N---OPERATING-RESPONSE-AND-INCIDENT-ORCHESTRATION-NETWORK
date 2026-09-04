@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/server/db/client";
 import { MembershipStatusPatchSchema } from "@/contracts/identity";
+import { requireRequestContext } from "@/server/auth/request-context";
 
 export async function PATCH(
   req: NextRequest,
@@ -9,6 +10,7 @@ export async function PATCH(
   const requestId = crypto.randomUUID();
   try {
     const { id } = await params;
+    const context = await requireRequestContext(req, ["principal", "admin"]);
     const body = await req.json();
 
     const parsed = MembershipStatusPatchSchema.safeParse(body);
@@ -28,6 +30,7 @@ export async function PATCH(
         updated_at: new Date().toISOString(),
       })
       .eq("id", id)
+      .eq("institution_id", context.institutionId)
       .select()
       .single();
 

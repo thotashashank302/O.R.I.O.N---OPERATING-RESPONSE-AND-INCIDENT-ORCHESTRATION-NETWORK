@@ -1,23 +1,26 @@
 "use client";
 
 import React, { useState } from "react";
+import { orionContextHeaders, useActiveContext } from "@/features/identity/use-active-context";
 
 export function CollegeSetupForm() {
+  const { activeContext } = useActiveContext();
   const [activeTab, setActiveTab] = useState<"college" | "department" | "location" | "roster">("college");
 
   // College form state
-  const [collegeName, setCollegeName] = useState("ORION Institute of Technology");
-  const [collegeCode, setCollegeCode] = useState("ORION-DEMO");
+  const [collegeName, setCollegeName] = useState("");
+  const [collegeCode, setCollegeCode] = useState("");
   const [collegeStatus, setCollegeStatus] = useState<string | null>(null);
 
   // Location form state
-  const [locationLabel, setLocationLabel] = useState("Lab 402 - Systems Lab");
+  const [locationLabel, setLocationLabel] = useState("");
   const [locationKind, setLocationKind] = useState("lab");
   const [locationStatus, setLocationStatus] = useState<string | null>(null);
 
   // Roster row state
-  const [rosterRoll, setRosterRoll] = useState("2024CSB105");
-  const [rosterEmail, setRosterEmail] = useState("ananya.k@orion.edu");
+  const [rosterRoll, setRosterRoll] = useState("");
+  const [rosterEmail, setRosterEmail] = useState("");
+  const [rosterDepartmentId, setRosterDepartmentId] = useState("");
   const [rosterYear, setRosterYear] = useState(2);
   const [rosterSec, setRosterSec] = useState("A");
   const [rosterStatus, setRosterStatus] = useState<string | null>(null);
@@ -28,7 +31,7 @@ export function CollegeSetupForm() {
     try {
       const res = await fetch("/api/institutions", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...(activeContext ? orionContextHeaders(activeContext) : {}) },
         body: JSON.stringify({ name: collegeName, code: collegeCode }),
       });
       const json = await res.json();
@@ -47,12 +50,11 @@ export function CollegeSetupForm() {
     try {
       const res = await fetch("/api/locations", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...(activeContext ? orionContextHeaders(activeContext) : {}) },
         body: JSON.stringify({
-          institution_id: "demo-inst-01",
           label: locationLabel,
           kind: locationKind,
-          asset_counts: { workstations: 30, projector: 1, ac_units: 2 },
+          asset_counts: {},
         }),
       });
       const json = await res.json();
@@ -71,12 +73,11 @@ export function CollegeSetupForm() {
     try {
       const res = await fetch("/api/roster/rows", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...(activeContext ? orionContextHeaders(activeContext) : {}) },
         body: JSON.stringify({
-          institution_id: "demo-inst-01",
           roll_number: rosterRoll,
           roster_email: rosterEmail,
-          department_id: "dept-cs-01",
+          department_id: rosterDepartmentId,
           year: Number(rosterYear),
           section: rosterSec,
         }),
@@ -172,6 +173,17 @@ export function CollegeSetupForm() {
           <form onSubmit={handleCreateLocation} className="max-w-xl space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
+                <label className="block text-slate-300 font-medium mb-1.5">Department ID</label>
+                <input
+                  type="text"
+                  required
+                  value={rosterDepartmentId}
+                  onChange={(e) => setRosterDepartmentId(e.target.value)}
+                  placeholder="Department UUID"
+                  className="w-full px-3.5 py-2.5 rounded-lg bg-slate-950 border border-slate-800 font-mono text-white"
+                />
+              </div>
+              <div>
                 <label className="block text-slate-300 font-medium mb-1.5">Location Kind</label>
                 <select
                   value={locationKind}
@@ -182,8 +194,8 @@ export function CollegeSetupForm() {
                   <option value="floor">Floor</option>
                   <option value="room">Classroom</option>
                   <option value="lab">Laboratory</option>
-                  <option value="facility">Facility (Mess/Sports)</option>
-                  <option value="outdoor">Outdoor / Zone</option>
+                  <option value="campus">Campus / Outdoor Zone</option>
+                  <option value="other">Other Facility (Mess/Sports)</option>
                 </select>
               </div>
               <div>

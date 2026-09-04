@@ -68,7 +68,7 @@ function AssignmentCard({ assignment }: { assignment: Assignment }) {
           )}
         </div>
         <span className="font-mono text-xs text-slate-600">
-          v{assignment.active_version}
+          v{assignment.version}
         </span>
       </div>
 
@@ -125,7 +125,7 @@ function AssignmentCard({ assignment }: { assignment: Assignment }) {
           <ActionButton
             assignmentId={assignment.id}
             action="acknowledge"
-            version={assignment.active_version}
+            version={assignment.version}
             label="Acknowledge"
             color="cyan"
           />
@@ -134,7 +134,7 @@ function AssignmentCard({ assignment }: { assignment: Assignment }) {
           <ActionButton
             assignmentId={assignment.id}
             action="start"
-            version={assignment.active_version}
+            version={assignment.version}
             label="Start Work"
             color="emerald"
           />
@@ -144,7 +144,7 @@ function AssignmentCard({ assignment }: { assignment: Assignment }) {
             <ActionButton
               assignmentId={assignment.id}
               action="handover"
-              version={assignment.active_version}
+              version={assignment.version}
               label="Request Handover"
               color="amber"
             />
@@ -215,9 +215,9 @@ export default async function StaffPage() {
   // Resolve active membership
   const { data: membership } = await supabase
     .from("institution_memberships")
-    .select("id, institution_id, state")
+    .select("id, institution_id, status")
     .eq("user_id", user.id)
-    .eq("state", "active")
+    .eq("status", "active")
     .maybeSingle();
 
   if (!membership) {

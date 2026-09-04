@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { MemberItem } from "../identity/MembershipList";
 import { RoleEnum } from "@/contracts/identity";
+import { orionContextHeaders, useActiveContext } from "../identity/use-active-context";
 
 interface RoleGrantModalProps {
   member: MemberItem;
@@ -11,9 +12,10 @@ interface RoleGrantModalProps {
 }
 
 export function RoleGrantModal({ member, onClose, onSuccess }: RoleGrantModalProps) {
+  const { activeContext } = useActiveContext();
   const [role, setRole] = useState<RoleEnum>("cr");
-  const [departmentId, setDepartmentId] = useState("dept-cs-01");
-  const [section, setSection] = useState("A");
+  const [departmentId, setDepartmentId] = useState("");
+  const [section, setSection] = useState("");
   const [seatNumber, setSeatNumber] = useState<number>(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -28,9 +30,8 @@ export function RoleGrantModal({ member, onClose, onSuccess }: RoleGrantModalPro
     try {
       const res = await fetch("/api/role-grants", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...(activeContext ? orionContextHeaders(activeContext) : {}) },
         body: JSON.stringify({
-          granted_by_membership_id: "mem-01", // Demo principal/admin session
           membership_id: member.id,
           role,
           department_id: role === "cr" || role === "hod" ? departmentId : undefined,
@@ -97,7 +98,7 @@ export function RoleGrantModal({ member, onClose, onSuccess }: RoleGrantModalPro
               <option value="staff">Staff / Facilities Specialist</option>
               <option value="admin">College Administrator</option>
               <option value="transport_admin">Transport Admin</option>
-              <option value="club_president">Club President</option>
+              <option value="president">Club President</option>
             </select>
           </div>
 
@@ -109,28 +110,24 @@ export function RoleGrantModal({ member, onClose, onSuccess }: RoleGrantModalPro
               </div>
               <div className="grid grid-cols-3 gap-2">
                 <div>
-                  <label className="block text-slate-400 mb-1">Department</label>
-                  <select
+                  <label className="block text-slate-400 mb-1">Department ID</label>
+                  <input
+                    required
                     value={departmentId}
                     onChange={(e) => setDepartmentId(e.target.value)}
+                    placeholder="UUID"
                     className="w-full px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-white"
-                  >
-                    <option value="dept-cs-01">Computer Science</option>
-                    <option value="dept-ee-01">Electrical Engg</option>
-                    <option value="dept-me-01">Mechanical</option>
-                  </select>
+                  />
                 </div>
                 <div>
-                  <label className="block text-slate-400 mb-1">Section</label>
-                  <select
+                  <label className="block text-slate-400 mb-1">Section ID</label>
+                  <input
+                    required
                     value={section}
                     onChange={(e) => setSection(e.target.value)}
+                    placeholder="UUID"
                     className="w-full px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-white"
-                  >
-                    <option value="A">Section A</option>
-                    <option value="B">Section B</option>
-                    <option value="C">Section C</option>
-                  </select>
+                  />
                 </div>
                 <div>
                   <label className="block text-slate-400 mb-1">Seat Number</label>

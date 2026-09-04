@@ -7,11 +7,11 @@ import { requireRequestContext } from "@/server/auth/request-context";
 
 const idSchema = z.string().uuid();
 
-export async function GET(request: Request, context: { params: Promise<{ incidentId: string }> }) {
+export async function GET(request: Request, context: { params: Promise<{ id: string }> }) {
   const requestId = request.headers.get("x-request-id") ?? randomUUID();
   try {
     const auth = await requireRequestContext(request);
-    const incidentId = idSchema.parse((await context.params).incidentId);
+    const incidentId = idSchema.parse((await context.params).id);
     const session = await createSupabaseSessionClient();
     const readable = await session.from("incidents").select("id").eq("id", incidentId).eq("institution_id", auth.institutionId).maybeSingle();
     if (!readable.data) return fail("NOT_FOUND", "Incident is unavailable", requestId, 404);

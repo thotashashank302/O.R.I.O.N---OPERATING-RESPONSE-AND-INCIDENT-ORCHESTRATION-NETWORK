@@ -85,6 +85,7 @@ export const CreateIncidentSchema = z.object({
     .trim(),
   visibility: z.enum(INCIDENT_VISIBILITY).default('routine'),
   isConfidential: z.boolean().default(false),
+  accusedMembershipId: z.string().uuid().optional(),
   reportingScope: z.enum(['cr', 'student', 'transport', 'club']).default('student'),
   scopeContext: z
     .object({

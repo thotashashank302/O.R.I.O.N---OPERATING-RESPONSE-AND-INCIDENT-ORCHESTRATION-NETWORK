@@ -49,24 +49,24 @@ export default function AdminDashboardPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="p-5 rounded-2xl bg-slate-900/50 backdrop-blur-md border border-slate-800/80 shadow-lg">
             <div className="text-[11px] font-mono text-slate-400 uppercase">Verified Members</div>
-            <div className="text-2xl font-bold text-white mt-1">428</div>
+            <div className="text-2xl font-bold text-white mt-1">—</div>
             <div className="text-[11px] text-emerald-400 mt-2 flex items-center gap-1">
-              <span>●</span> 100% Roster Bound
+              <span>●</span> Awaiting live membership summary
             </div>
           </div>
           <div className="p-5 rounded-2xl bg-slate-900/50 backdrop-blur-md border border-slate-800/80 shadow-lg">
             <div className="text-[11px] font-mono text-slate-400 uppercase">Active CR Seats</div>
-            <div className="text-2xl font-bold text-cyan-400 mt-1">24 / 24</div>
+            <div className="text-2xl font-bold text-cyan-400 mt-1">—</div>
             <div className="text-[11px] text-slate-400 mt-2">2 Seats Max Per Section</div>
           </div>
           <div className="p-5 rounded-2xl bg-slate-900/50 backdrop-blur-md border border-slate-800/80 shadow-lg">
             <div className="text-[11px] font-mono text-slate-400 uppercase">Staff On Duty</div>
-            <div className="text-2xl font-bold text-amber-300 mt-1">14</div>
+            <div className="text-2xl font-bold text-amber-300 mt-1">—</div>
             <div className="text-[11px] text-slate-400 mt-2">Default Off-Duty Enforced</div>
           </div>
           <div className="p-5 rounded-2xl bg-slate-900/50 backdrop-blur-md border border-slate-800/80 shadow-lg">
             <div className="text-[11px] font-mono text-slate-400 uppercase">Campus Location Nodes</div>
-            <div className="text-2xl font-bold text-purple-300 mt-1">56</div>
+            <div className="text-2xl font-bold text-purple-300 mt-1">—</div>
             <div className="text-[11px] text-purple-400 mt-2">Blocks, Rooms & Labs</div>
           </div>
         </div>

@@ -138,12 +138,33 @@ export default function ReportForm({
     setIsSubmitting(true);
 
     try {
-      // Mock uploads to generate attachment metadata
-      const attachments = files.map((f, i) => ({
-        storageKey: `institutions/${institutionId}/incidents/upload-${Date.now()}-${i}.${f.type.split('/')[1]}`,
-        fileName: f.name,
-        fileSize: f.size,
-        mimeType: f.type as 'image/jpeg' | 'image/png' | 'image/webp',
+      const attachments = await Promise.all(files.map(async (file) => {
+        const authorization = await fetch('/api/uploads', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-orion-institution-id': institutionId,
+            'x-orion-membership-id': memberId,
+          },
+          body: JSON.stringify({ fileName: file.name, fileSize: file.size, mimeType: file.type }),
+        });
+        const ticket = (await authorization.json()) as {
+          data?: { uploadUrl: string; storageKey: string };
+          error?: { message?: string };
+        };
+        if (!authorization.ok || !ticket.data) throw new Error(ticket.error?.message ?? 'Upload authorization failed');
+        const upload = await fetch(ticket.data.uploadUrl, {
+          method: 'PUT',
+          headers: { 'Content-Type': file.type },
+          body: file,
+        });
+        if (!upload.ok) throw new Error(`Failed to upload ${file.name}`);
+        return {
+          storageKey: ticket.data.storageKey,
+          fileName: file.name,
+          fileSize: file.size,
+          mimeType: file.type as 'image/jpeg' | 'image/png' | 'image/webp',
+        };
       }));
 
       const payload = {
@@ -162,8 +183,8 @@ export default function ReportForm({
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-institution-id': institutionId,
-          'x-member-id': memberId,
+          'x-orion-institution-id': institutionId,
+          'x-orion-membership-id': memberId,
         },
         body: JSON.stringify(payload),
       });

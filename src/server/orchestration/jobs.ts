@@ -1,7 +1,7 @@
 import type { JobStatus } from "@/contracts/domain";
 
 export const JOB_TYPES = [
-  "triage", "commander", "specialist", "verification", "ack_reminder",
+  "commander", "specialist", "ack_reminder",
   "assignment_escalation", "verifier_reminder", "verifier_escalation", "outbox_delivery",
 ] as const;
 export type JobType = (typeof JOB_TYPES)[number];

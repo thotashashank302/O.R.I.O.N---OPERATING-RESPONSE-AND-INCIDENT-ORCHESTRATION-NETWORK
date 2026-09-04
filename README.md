@@ -6,7 +6,7 @@ Campus complaints often reach someone, but ownership, follow-up and proof of res
 
 ## Current implementation status
 
-This checkout is the Developer 1 integration baseline, not the finished application.
+This checkout contains the locally integrated Developer 1–5 application. External database deployment, controlled email delivery, and hosted end-to-end acceptance remain release gates.
 
 Implemented and locally verified:
 
@@ -23,14 +23,18 @@ Implemented and locally verified:
 - Protected automation tick and tightly gated “Simulated deadline” route.
 - Resend outbox transport, generic React Email notification, verified/deduplicated webhooks, signed single-use acknowledgement, own-recipient notifications and authorized incident timeline.
 - Unit/fixture coverage, responsive browser checks and a production build.
+- Integrated identity/context selection, roster and role administration from Developer 2.
+- Persistent reporting, private uploads, voting, clarification and Triage flows from Developer 3.
+- Staff availability, assignments, evidence, approvals and Verification flows from Developer 4.
+- Shared UI, Specialist orchestration, durable email/outbox, notifications and timeline work from Developer 5.
+- Canonical Commander replanning for reporter rejection, failed verification and staff handover; every durable job type now has a production handler.
 
-Not yet integrated or externally verified:
+Not yet externally verified:
 
-- Real registration/role administration and two-tenant sessions (Developer 2).
-- Report/vote/private-intake UI and Triage module (Developer 3).
-- Staff actions, evidence, human verification and Verification module (Developer 4).
-- Shared product shell and D2 context selector (Developer 5; blocked on the approved UI reference).
-- Applied Supabase migration/RLS tests, live Featherless calls, real email receipt, hosted Cron, deployed E2E, public URL, video and submission receipt.
+- Applied Supabase migrations, pgTAP and authenticated two-tenant RLS tests. The configured project is reachable but does not yet contain the ORION schema; local validation is blocked until Docker Desktop is responsive.
+- A completed Featherless model inference. The configured key and subscription are authenticated through `GET /v1/plan`, but the selected 70B model smoke request timed out.
+- Real Resend receipt/webhooks. The configured key authenticates as a send-only restricted key, which is appropriate for delivery but cannot list domains; no email was sent during integration.
+- Hosted Cron, deployed E2E, public URL, video and submission receipt.
 - P1 transport/club/feedback surfaces and P2 3D intro/map/analytics.
 
 ## Autonomous incident loop
@@ -109,7 +113,7 @@ npm run build
 npm run test:e2e
 ```
 
-Current local result: typecheck and lint passed; 22 unit tests in 5 files passed; the production Webpack build passed; three Chromium E2E tests passed; and desktop/mobile acknowledgement captures were visually checked. Supabase pgTAP, two-tenant user-token tests, live provider/email tests and deployed recovery tests still require their runtimes and credentials. See `docs/integration-status.md` and the developer progress files for exact evidence and blockers.
+Current integration result: typecheck and lint passed; 98 unit tests across 12 files passed; the production Webpack build generated 34 routes; and three Chromium E2E tests passed. The default Turbopack build cannot bind its internal CSS helper port on this host, while the supported Webpack build succeeds. Supabase pgTAP, two-tenant user-token tests, live email delivery and deployed recovery tests still require their external runtimes. See `docs/integration-status.md` and the developer progress files for exact evidence and blockers.
 
 ## Controlled demo
 

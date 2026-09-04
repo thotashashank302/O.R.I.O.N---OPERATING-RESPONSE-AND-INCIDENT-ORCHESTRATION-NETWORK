@@ -33,9 +33,9 @@ export async function GET() {
     // Resolve membership for this user
     const { data: membership, error: memberError } = await supabase
       .from("institution_memberships")
-      .select("id, institution_id, state")
+      .select("id, institution_id, status")
       .eq("user_id", user.id)
-      .eq("state", "active")
+      .eq("status", "active")
       .single();
 
     if (memberError || !membership) {

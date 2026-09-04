@@ -46,9 +46,9 @@ export async function POST(
     // Resolve active membership
     const { data: membership, error: memberError } = await supabase
       .from("institution_memberships")
-      .select("id, institution_id, state")
+      .select("id, institution_id, status")
       .eq("user_id", user.id)
-      .eq("state", "active")
+      .eq("status", "active")
       .single();
 
     if (memberError || !membership) {
@@ -157,28 +157,36 @@ export async function POST(
 
     // Apply assignee override if requested — reassign active assignment
     if (parsed.data.new_assignee_membership_id) {
-      // Find active assignment for this incident's current task
-      const { data: activeAssignment } = await supabase
-        .from("assignments")
-        .select("id, task_id, active_version")
-        .eq("incident_id", incidentId) // requires view/join in DB
+      const { data: activePlan } = await supabase.from("incident_plans")
+        .select("id").eq("incident_id", incidentId).eq("status", "active").maybeSingle();
+      const { data: planTasks } = activePlan
+        ? await supabase.from("incident_tasks").select("id").eq("plan_id", activePlan.id)
+        : { data: [] };
+      const taskIds = (planTasks ?? []).map((task) => task.id);
+      const { data: activeAssignment } = await supabase.from("assignments")
+        .select("id, task_id, version, active_version")
+        .in("task_id", taskIds.length > 0 ? taskIds : ["00000000-0000-0000-0000-000000000000"])
+        .eq("active_version", true)
         .in("state", ["offered", "acknowledged", "active"])
+        .limit(1)
         .maybeSingle();
 
       if (activeAssignment) {
         // Cancel old assignment
         await supabase
           .from("assignments")
-          .update({ state: "cancelled", updated_at: now })
+          .update({ state: "cancelled", active_version: false, updated_at: now })
           .eq("id", activeAssignment.id);
 
         // Create new assignment for override target
         await supabase.from("assignments").insert({
           id: randomUUID(),
+          institution_id: membership.institution_id,
           task_id: activeAssignment.task_id,
           assignee_membership_id: parsed.data.new_assignee_membership_id,
           state: "offered",
-          active_version: 1,
+          version: activeAssignment.version + 1,
+          active_version: true,
           acknowledgement_deadline: new Date(
             Date.now() + 10 * 60 * 1000
           ).toISOString(), // 10-min ack deadline
@@ -190,28 +198,27 @@ export async function POST(
 
     // Audit event
     await supabase.from("audit_events").insert({
+      institution_id: membership.institution_id,
       actor_membership_id: membership.id,
-      entity_type: "incident",
-      entity_id: incidentId,
-      previous_value: {
-        severity: incident.severity,
-        version: incident.version,
+      action: "hod_override",
+      target_type: "incident",
+      target_id: incidentId,
+      safe_payload: {
+        previous: { severity: incident.severity, version: incident.version },
+        next: { severity: parsed.data.new_priority ?? incident.severity, new_assignee: parsed.data.new_assignee_membership_id ?? null },
+        reason: parsed.data.reason,
       },
-      new_value: {
-        severity: parsed.data.new_priority ?? incident.severity,
-        new_assignee: parsed.data.new_assignee_membership_id ?? null,
-      },
-      reason: parsed.data.reason,
       created_at: now,
     });
 
     // Incident event
     await supabase.from("incident_events").insert({
-      entity_type: "incident",
-      entity_id: incidentId,
+      institution_id: membership.institution_id,
+      incident_id: incidentId,
       actor_membership_id: membership.id,
-      event_type: "hod_override",
-      payload: {
+      actor_type: "human",
+      action: "hod_override",
+      safe_payload: {
         reason: parsed.data.reason,
         new_priority: parsed.data.new_priority ?? null,
         new_assignee: parsed.data.new_assignee_membership_id ?? null,

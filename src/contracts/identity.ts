@@ -18,18 +18,21 @@ export type MembershipStatus = z.infer<typeof MembershipStatus>;
 export const DepartmentKind = z.enum(["academic", "service"]);
 export type DepartmentKind = z.infer<typeof DepartmentKind>;
 
-export const LocationKind = z.enum(["block", "floor", "room", "lab", "facility", "outdoor"]);
+export const LocationKind = z.enum(["campus", "block", "floor", "room", "lab", "route", "other"]);
 export type LocationKind = z.infer<typeof LocationKind>;
 
 export const RoleEnum = z.enum([
   "principal",
   "admin",
   "hod",
+  "supervisor",
   "cr",
   "staff",
   "student",
   "transport_admin",
-  "club_president",
+  "president",
+  "coordinator",
+  "safeguarding_officer",
 ]);
 export type RoleEnum = z.infer<typeof RoleEnum>;
 
@@ -190,6 +193,7 @@ export type RoleRevokeInput = z.infer<typeof RoleRevokeInputSchema>;
 
 export const StaffCapabilitySchema = z.object({
   id: z.string().min(1),
+  institution_id: z.string().min(1),
   membership_id: z.string().min(1),
   skills: z.array(z.string()).default([]),
   zones: z.array(z.string()).default([]),

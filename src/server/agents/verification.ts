@@ -128,8 +128,7 @@ function formatEvidence(evidence: ResolutionEvidence[]): string {
  * On persistent failure: returns a pending_human verdict (fail safe).
  */
 export async function runVerificationAgent(
-  context: VerificationContext,
-  agentRunId?: string
+  context: VerificationContext
 ): Promise<VerificationDecision> {
   const apiKey = process.env.FEATHERLESS_API_KEY;
   const baseUrl =
@@ -170,8 +169,6 @@ export async function runVerificationAgent(
 
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     try {
-      const startMs = Date.now();
-
       const response = await fetch(`${baseUrl}/chat/completions`, {
         method: "POST",
         headers: {
@@ -189,8 +186,6 @@ export async function runVerificationAgent(
         }),
         signal: AbortSignal.timeout(30_000), // 30s AI timeout per contracts §8
       });
-
-      const latencyMs = Date.now() - startMs;
 
       if (response.status === 429 || response.status >= 500) {
         console.warn(
@@ -246,17 +241,6 @@ export async function runVerificationAgent(
           "Physical verification required — human must confirm before this task can be marked verified."
         );
       }
-
-      // Persist agent run metadata (non-blocking)
-      persistAgentRun({
-        agent_name: "verification",
-        model,
-        prompt_version: "v1",
-        latency_ms: latencyMs,
-        status: "success",
-        outcome: decision,
-        run_id: agentRunId,
-      }).catch(() => {});
 
       return decision;
     } catch (err: unknown) {
@@ -338,37 +322,6 @@ function failSafePendingHuman(
 
 async function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-/**
- * Persists agent run metadata for audit/observability.
- * Non-blocking — failures are logged but do not affect the result.
- */
-async function persistAgentRun(meta: {
-  agent_name: string;
-  model: string;
-  prompt_version: string;
-  latency_ms: number;
-  status: string;
-  outcome: unknown;
-  run_id?: string;
-}) {
-  try {
-    const { createClient } = await import("@/server/db/client");
-    const supabase = await createClient();
-    await supabase.from("agent_runs").insert({
-      agent_name: meta.agent_name,
-      model: meta.model,
-      prompt_version: meta.prompt_version,
-      latency_ms: meta.latency_ms,
-      execution_status: meta.status,
-      validated_outcome: meta.outcome,
-      // chain_of_thought is NOT stored per contracts §2
-      created_at: new Date().toISOString(),
-    });
-  } catch (err) {
-    console.warn("[verification-agent] failed to persist agent run:", err);
-  }
 }
 
 /**

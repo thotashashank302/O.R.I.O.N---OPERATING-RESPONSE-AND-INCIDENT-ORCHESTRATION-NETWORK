@@ -92,14 +92,14 @@ export function EvidenceForm({
 
         if (testResult.trim()) {
           submissions.push(
-            submitEvidence({ kind: "functional_test", content: testResult.trim() })
+            submitEvidence({ kind: "test_result", content: testResult.trim() })
           );
         }
 
         if (photoKey.trim()) {
           submissions.push(
             submitEvidence({
-              kind: "photo_ref",
+              kind: "photo",
               content: "Photo evidence attached",
               storageKey: photoKey.trim(),
             })

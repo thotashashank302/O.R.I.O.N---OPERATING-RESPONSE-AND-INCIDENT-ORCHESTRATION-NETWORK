@@ -105,9 +105,9 @@ describe('Developer 3: Reporting, Voting & Verification Lifecycle (P0 Suite)', (
         fileName: 'broken_bench.jpg',
         fileSize: 2 * 1024 * 1024,
         mimeType: 'image/jpeg',
-      });
+      }, { signUpload: async (key) => `https://storage.test/${key}` });
 
-      expect(result.uploadUrl).toContain('mock-storage');
+      expect(result.uploadUrl).toContain('storage.test');
       expect(result.storageKey).toContain(institutionId);
       expect(result.storageKey).toMatch(/\.(jpg|jpeg)$/);
       expect(result.maxSizeBytes).toBe(5 * 1024 * 1024);

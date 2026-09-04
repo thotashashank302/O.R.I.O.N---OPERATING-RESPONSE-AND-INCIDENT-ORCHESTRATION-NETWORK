@@ -59,7 +59,24 @@ export async function addRosterRow(
     created_at: new Date().toISOString(),
   };
 
-  const { error } = await db.from("student_roster").insert(newEntry);
+  const { data: section } = await db.from("sections")
+    .select("id")
+    .eq("institution_id", institutionId)
+    .eq("department_id", parsed.data.department_id)
+    .eq("name", parsed.data.section.toUpperCase())
+    .maybeSingle();
+  if (!section) return { success: false, error: "Roster section was not found in this institution." };
+
+  const { error } = await db.from("student_roster").insert({
+    id: newEntry.id,
+    institution_id: institutionId,
+    roll_number: newEntry.roll_number,
+    roster_email: newEntry.roster_email,
+    department_id: newEntry.department_id,
+    section_id: section.id,
+    academic_year: newEntry.year,
+    claimed_user_id: null,
+  });
   if (error) {
     return { success: false, error: error.message };
   }
@@ -149,6 +166,7 @@ export async function claimStudentMembership(
       error: "This student roll number has already been claimed by another account.",
     };
   }
+  const rosterSectionId = rosterEntry.section_id ?? rosterEntry.section;
 
   // 5. Create or retrieve active institution membership
   const { data: existingMembership } = await db
@@ -193,13 +211,14 @@ export async function claimStudentMembership(
   if (!existingRole) {
     const studentGrant = {
       id: crypto.randomUUID(),
+      institution_id: inst.id,
       membership_id: membershipId,
       role: "student",
       department_id: rosterEntry.department_id,
-      section: rosterEntry.section,
+      section_id: rosterSectionId,
       starts_at: new Date().toISOString(),
       ends_at: null,
-      granted_by_membership_id: null,
+      granted_by: membershipId,
       revoked_at: null,
     };
     await db.from("role_grants").insert(studentGrant);
@@ -215,6 +234,6 @@ export async function claimStudentMembership(
     success: true,
     membershipId,
     departmentId: rosterEntry.department_id,
-    section: rosterEntry.section,
+    section: rosterSectionId,
   };
 }

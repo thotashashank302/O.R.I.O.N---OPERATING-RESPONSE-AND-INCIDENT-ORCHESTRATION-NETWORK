@@ -14,6 +14,7 @@ import type {
   TaskState,
   AssignmentActionRequest,
 } from "@/contracts/operations";
+import { enqueueCommanderJob } from "@/server/orchestration/commander-enqueue";
 
 // Valid transition map: current state -> allowed actions
 const VALID_TRANSITIONS: Record<AssignmentState, string[]> = {
@@ -43,7 +44,7 @@ export async function performAssignmentAction(
   // 1. Fetch current assignment — must belong to this member
   const { data: current, error: fetchError } = await supabase
     .from("assignments")
-    .select("id, assignee_membership_id, state, active_version, task_id")
+    .select("id, assignee_membership_id, state, version, active_version, task_id, institution_id")
     .eq("id", assignmentId)
     .eq("assignee_membership_id", membershipId)
     .single();
@@ -54,13 +55,22 @@ export async function performAssignmentAction(
     });
   }
 
+  const { data: task } = await supabase.from("incident_tasks")
+    .select("plan_id").eq("id", current.task_id).eq("institution_id", current.institution_id).maybeSingle();
+  const { data: plan } = task
+    ? await supabase.from("incident_plans").select("incident_id").eq("id", task.plan_id).maybeSingle()
+    : { data: null };
+  if (!plan?.incident_id) {
+    throw Object.assign(new Error("Assignment incident context not found"), { status: 404 });
+  }
+
   // 2. Optimistic version check
-  if (current.active_version !== request.expected_version) {
+  if (!current.active_version || current.version !== request.expected_version) {
     throw Object.assign(
       new Error(
         "Stale version — assignment was modified. Reload and try again."
       ),
-      { status: 409, currentVersion: current.active_version }
+      { status: 409, currentVersion: current.version }
     );
   }
 
@@ -77,18 +87,19 @@ export async function performAssignmentAction(
 
   // 4. Map action -> new assignment state and task state
   const { newAssignmentState, newTaskState } = resolveStates(request.action);
-  const newVersion = current.active_version + 1;
+  const newVersion = current.version + 1;
 
   // 5. Atomic update: assignment + task state in one transaction-like batch
   const { data: updated, error: updateError } = await supabase
     .from("assignments")
     .update({
       state: newAssignmentState,
-      active_version: newVersion,
+      version: newVersion,
       updated_at: new Date().toISOString(),
     })
     .eq("id", assignmentId)
-    .eq("active_version", request.expected_version) // double-check for race
+    .eq("version", request.expected_version)
+    .eq("active_version", true) // double-check for race and superseded assignment
     .select()
     .single();
 
@@ -109,12 +120,21 @@ export async function performAssignmentAction(
 
   // 7. If handover: create a handover event for D1's replan loop
   if (request.action === "handover") {
-    await recordHandoverEvent(supabase, assignmentId, membershipId, request.reason);
+    await recordHandoverEvent(
+      supabase,
+      current.institution_id,
+      plan.incident_id,
+      assignmentId,
+      membershipId,
+      request.reason
+    );
   }
 
   // 8. Append to incident_events
   await appendIncidentEvent(supabase, {
     assignment_id: assignmentId,
+    institution_id: current.institution_id,
+    incident_id: plan.incident_id,
     actor_membership_id: membershipId,
     action: request.action,
     reason: request.reason ?? request.block_reason ?? null,
@@ -146,25 +166,26 @@ function resolveStates(action: string): {
 
 async function recordHandoverEvent(
   supabase: Awaited<ReturnType<typeof createClient>>,
+  institutionId: string,
+  incidentId: string,
   assignmentId: string,
   membershipId: string,
   reason?: string
 ) {
   // Creates an event for D1's replan/Commander loop to pick up
-  await supabase.from("jobs").insert({
-    type: "handover_requested",
-    payload: { assignment_id: assignmentId, requester: membershipId, reason },
-    status: "queued",
-    due_at: new Date().toISOString(),
-    attempt: 0,
-    dedupe_key: `handover-${assignmentId}-${Date.now()}`,
-  });
+  await enqueueCommanderJob(
+    incidentId,
+    reason ?? `Assignment ${assignmentId} requires handover`,
+    `handover-${assignmentId}`,
+  );
 }
 
 async function appendIncidentEvent(
   supabase: Awaited<ReturnType<typeof createClient>>,
   event: {
     assignment_id: string;
+    institution_id: string;
+    incident_id: string;
     actor_membership_id: string;
     action: string;
     reason: string | null;
@@ -172,11 +193,12 @@ async function appendIncidentEvent(
   }
 ) {
   await supabase.from("incident_events").insert({
-    entity_type: "assignment",
-    entity_id: event.assignment_id,
+    institution_id: event.institution_id,
+    incident_id: event.incident_id,
     actor_membership_id: event.actor_membership_id,
-    event_type: event.action,
-    payload: { new_state: event.new_state, reason: event.reason },
+    actor_type: "human",
+    action: event.action,
+    safe_payload: { assignment_id: event.assignment_id, new_state: event.new_state, reason: event.reason },
     created_at: new Date().toISOString(),
   });
 }

@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 import { jsonSuccess, jsonError } from '@/server/http-envelope';
-import { submitClarificationAnswer } from '@/server/reporting/clarification-service';
+import { requireRequestContext } from '@/server/auth/request-context';
+import { clarifyPersistentIncident } from '@/server/reporting/persistent-service';
 
 export async function POST(
   req: NextRequest,
@@ -8,11 +9,7 @@ export async function POST(
 ) {
   try {
     const { id } = await params;
-    const memberId = req.headers.get('x-member-id');
-
-    if (!memberId) {
-      return jsonError('UNAUTHENTICATED', 'Missing member context', 401);
-    }
+    const context = await requireRequestContext(req);
 
     const body = await req.json();
 
@@ -24,13 +21,7 @@ export async function POST(
       return jsonError('VALIDATION_ERROR', 'expectedVersion is required for concurrency control', 422);
     }
 
-    const result = await submitClarificationAnswer(memberId, {
-      incidentId: id,
-      expectedVersion: body.expectedVersion,
-      answer: body.answer.trim(),
-      updatedLocationText: body.updatedLocationText,
-      additionalAttachments: body.additionalAttachments,
-    });
+    const result = await clarifyPersistentIncident(context, id, body.answer.trim(), body.expectedVersion);
 
     return jsonSuccess({ incident: result.incident, job: result.job });
   } catch (err: unknown) {

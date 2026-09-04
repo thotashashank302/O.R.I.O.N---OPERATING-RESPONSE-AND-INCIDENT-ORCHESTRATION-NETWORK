@@ -1,4 +1,5 @@
 import { UPLOAD_LIMITS } from '@/contracts/reporting';
+import { createSupabaseAdmin } from '@/server/db/supabase-admin';
 
 export interface UploadAuthorizationRequest {
   institutionId: string;
@@ -44,7 +45,10 @@ export function checkAndIncrementUploadRateLimit(
  */
 export async function authorizePrivateUpload(
   request: UploadAuthorizationRequest,
-  options: { nowMs?: number } = {}
+  options: {
+    nowMs?: number;
+    signUpload?: (storageKey: string) => Promise<string>;
+  } = {}
 ): Promise<UploadAuthorizationResult> {
   // 1. Rate check
   const rate = checkAndIncrementUploadRateLimit(request.memberId, options.nowMs);
@@ -71,8 +75,14 @@ export async function authorizePrivateUpload(
 
   const expiresAt = new Date((options.nowMs || Date.now()) + 15 * 60 * 1000).toISOString();
 
-  // In production, Supabase createSignedUploadUrl is called here
-  const uploadUrl = `https://mock-storage.supabase.co/storage/v1/upload/sign/evidence-vault/${storageKey}`;
+  const signUpload = options.signUpload ?? (async (key: string) => {
+    const { data, error } = await createSupabaseAdmin().storage
+      .from('evidence-vault')
+      .createSignedUploadUrl(key);
+    if (error || !data?.signedUrl) throw new Error(error?.message ?? 'Unable to authorize private upload');
+    return data.signedUrl;
+  });
+  const uploadUrl = await signUpload(storageKey);
 
   return {
     uploadUrl,

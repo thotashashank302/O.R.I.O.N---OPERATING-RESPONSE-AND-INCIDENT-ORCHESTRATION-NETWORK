@@ -19,7 +19,7 @@ interface AssignmentTaskRow {
   evidence_requirements: string[] | null;
   requires_approval: boolean | null;
   designated_verifier_membership_id: string | null;
-  verifier_deadline: string | null;
+  verifier_due_at: string | null;
   incident_plans?: {
     incident?: {
       id: string;
@@ -38,7 +38,8 @@ interface AssignmentRow {
   assignee_membership_id: string;
   state: Assignment["state"];
   acknowledgement_deadline: string | null;
-  active_version: number;
+  version: number;
+  active_version: boolean;
   created_at: string;
   updated_at: string;
   task: AssignmentTaskRow | null;
@@ -63,6 +64,7 @@ export async function getStaffAssignments(
       assignee_membership_id,
       state,
       acknowledgement_deadline,
+      version,
       active_version,
       created_at,
       updated_at,
@@ -76,7 +78,7 @@ export async function getStaffAssignments(
         evidence_requirements,
         requires_approval,
         designated_verifier_membership_id,
-        verifier_deadline,
+        verifier_due_at,
         incident_plans (
           incident:incidents (
             id,
@@ -111,6 +113,7 @@ export async function getStaffAssignments(
       assignee_membership_id: row.assignee_membership_id,
       state: row.state,
       acknowledgement_deadline: row.acknowledgement_deadline,
+      version: row.version,
       active_version: row.active_version,
       created_at: row.created_at,
       updated_at: row.updated_at,
@@ -127,7 +130,7 @@ export async function getStaffAssignments(
             depends_on: [],
             designated_verifier_membership_id:
               task.designated_verifier_membership_id ?? null,
-            verifier_deadline: task.verifier_deadline ?? null,
+            verifier_due_at: task.verifier_due_at ?? null,
           }
         : undefined,
       incident: incident
@@ -164,6 +167,7 @@ export async function getAssignment(
       assignee_membership_id,
       state,
       acknowledgement_deadline,
+      version,
       active_version,
       created_at,
       updated_at,
@@ -177,7 +181,7 @@ export async function getAssignment(
         evidence_requirements,
         requires_approval,
         designated_verifier_membership_id,
-        verifier_deadline
+        verifier_due_at
       )
     `
     )
@@ -194,6 +198,7 @@ export async function getAssignment(
     assignee_membership_id: data.assignee_membership_id,
     state: data.state,
     acknowledgement_deadline: data.acknowledgement_deadline,
+    version: data.version,
     active_version: data.active_version,
     created_at: data.created_at,
     updated_at: data.updated_at,
@@ -210,7 +215,7 @@ export async function getAssignment(
           depends_on: [],
           designated_verifier_membership_id:
             task.designated_verifier_membership_id ?? null,
-          verifier_deadline: task.verifier_deadline ?? null,
+          verifier_due_at: task.verifier_due_at ?? null,
         }
       : undefined,
   };

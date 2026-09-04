@@ -49,9 +49,9 @@ export async function POST(
     // Resolve active membership
     const { data: membership, error: memberError } = await supabase
       .from("institution_memberships")
-      .select("id, institution_id, state")
+      .select("id, institution_id, status")
       .eq("user_id", user.id)
-      .eq("state", "active")
+      .eq("status", "active")
       .single();
 
     if (memberError || !membership) {
@@ -105,29 +105,16 @@ export async function POST(
     const { data: approvalReq, error: approvalError } = await supabase
       .from("approvals")
       .select(
-        "id, action_payload_hash, plan_version, approver_membership_id, decision, requested_by_membership_id, incident_id"
+        "id, institution_id, action_payload_hash, plan_version, approver_membership_id, decision, incident_id"
       )
       .eq("id", approvalRequestId)
+      .eq("institution_id", membership.institution_id)
       .single();
 
     if (approvalError || !approvalReq) {
       return NextResponse.json(
         { error: { code: "NOT_FOUND", message: "Approval request not found" }, requestId },
         { status: 404 }
-      );
-    }
-
-    // Self-approval conflict check
-    if (approvalReq.requested_by_membership_id === membership.id) {
-      return NextResponse.json(
-        {
-          error: {
-            code: "SELF_APPROVAL_CONFLICT",
-            message: "Cannot approve your own action",
-          },
-          requestId,
-        },
-        { status: 409 }
       );
     }
 
@@ -181,7 +168,7 @@ export async function POST(
       .from("approvals")
       .update({
         approver_membership_id: membership.id,
-        decision: parsed.data.decision,
+        decision: parsed.data.decision === "approve" ? "approved" : "rejected",
         reason: parsed.data.reason ?? null,
         decided_at: now,
       })
@@ -195,33 +182,18 @@ export async function POST(
 
     // Append incident event
     await supabase.from("incident_events").insert({
-      entity_type: "approval",
-      entity_id: approvalRequestId,
+      institution_id: membership.institution_id,
+      incident_id: approvalReq.incident_id,
       actor_membership_id: membership.id,
-      event_type: `approval_${parsed.data.decision}`,
-      payload: {
+      actor_type: "human",
+      action: `approval_${parsed.data.decision}`,
+      safe_payload: {
+        approval_id: approvalRequestId,
         plan_version: parsed.data.plan_version,
         reason: parsed.data.reason ?? null,
       },
       created_at: now,
     });
-
-    // If approved, queue the approved action job for D1's runner
-    if (parsed.data.decision === "approve") {
-      await supabase.from("jobs").insert({
-        type: "approval_granted",
-        payload: {
-          approval_id: approvalRequestId,
-          incident_id: approvalReq.incident_id,
-          plan_version: parsed.data.plan_version,
-          approver_membership_id: membership.id,
-        },
-        status: "queued",
-        due_at: now,
-        attempt: 0,
-        dedupe_key: `approval-granted-${approvalRequestId}`,
-      });
-    }
 
     return NextResponse.json({ data: decision, requestId }, { status: 200 });
   } catch (err: unknown) {

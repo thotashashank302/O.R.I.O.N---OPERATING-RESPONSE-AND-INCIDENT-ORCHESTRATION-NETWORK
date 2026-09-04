@@ -13,7 +13,7 @@ import { createClient } from "@/server/db/client";
 import { randomUUID } from "crypto";
 
 const EvidenceSchema = z.object({
-  kind: z.enum(["note", "functional_test", "photo_ref"]),
+  kind: z.enum(["note", "test_result", "photo"]),
   content: z.string().min(10, "Evidence content must be at least 10 characters").max(2000),
   storage_key: z.string().optional(), // for photo_ref — from D3's upload service
   expected_assignment_version: z.number().int().nonnegative(),
@@ -45,9 +45,9 @@ export async function POST(
     // Resolve active membership
     const { data: membership, error: memberError } = await supabase
       .from("institution_memberships")
-      .select("id, institution_id, state")
+      .select("id, institution_id, status")
       .eq("user_id", user.id)
-      .eq("state", "active")
+      .eq("status", "active")
       .single();
 
     if (memberError || !membership) {
@@ -78,7 +78,7 @@ export async function POST(
     // Verify the staff member has an active assignment for this task
     const { data: assignment, error: assignError } = await supabase
       .from("assignments")
-      .select("id, assignee_membership_id, state, active_version")
+    .select("id, institution_id, assignee_membership_id, state, version, active_version")
       .eq("task_id", taskId)
       .eq("assignee_membership_id", membership.id)
       .in("state", ["active", "acknowledged"])
@@ -97,8 +97,24 @@ export async function POST(
       );
     }
 
+    const { data: task } = await supabase
+      .from("incident_tasks")
+      .select("plan_id")
+      .eq("id", taskId)
+      .eq("institution_id", membership.institution_id)
+      .maybeSingle();
+    const { data: plan } = task
+      ? await supabase.from("incident_plans").select("incident_id").eq("id", task.plan_id).maybeSingle()
+      : { data: null };
+    if (!plan?.incident_id) {
+      return NextResponse.json(
+        { error: { code: "NOT_FOUND", message: "Task incident context not found" }, requestId },
+        { status: 404 }
+      );
+    }
+
     // Version check
-    if (assignment.active_version !== parsed.data.expected_assignment_version) {
+    if (!assignment.active_version || assignment.version !== parsed.data.expected_assignment_version) {
       return NextResponse.json(
         {
           error: {
@@ -111,13 +127,13 @@ export async function POST(
       );
     }
 
-    // photo_ref must have a storage_key
-    if (parsed.data.kind === "photo_ref" && !parsed.data.storage_key?.trim()) {
+    // Photo evidence must reference a private storage object.
+    if (parsed.data.kind === "photo" && !parsed.data.storage_key?.trim()) {
       return NextResponse.json(
         {
           error: {
             code: "VALIDATION_ERROR",
-            message: "storage_key is required for photo_ref evidence",
+            message: "storage_key is required for photo evidence",
           },
           requestId,
         },
@@ -141,13 +157,14 @@ export async function POST(
       .from("resolution_evidence")
       .insert({
         id: randomUUID(),
+        institution_id: assignment.institution_id,
         task_id: taskId,
         uploader_membership_id: membership.id,
         kind: parsed.data.kind,
-        content:
-          parsed.data.kind === "photo_ref"
-            ? parsed.data.storage_key! // store storage key, not public URL
-            : parsed.data.content,
+        storage_key: parsed.data.kind === "photo" ? parsed.data.storage_key! : null,
+        structured_result: parsed.data.kind === "photo"
+          ? { note: parsed.data.content }
+          : { content: parsed.data.content },
         evidence_version: nextVersion,
         created_at: new Date().toISOString(),
       })
@@ -160,11 +177,13 @@ export async function POST(
 
     // Append incident event
     await supabase.from("incident_events").insert({
-      entity_type: "task",
-      entity_id: taskId,
+      institution_id: membership.institution_id,
+      incident_id: plan.incident_id,
       actor_membership_id: membership.id,
-      event_type: "evidence_submitted",
-      payload: {
+      actor_type: "human",
+      action: "evidence_submitted",
+      safe_payload: {
+        task_id: taskId,
         kind: parsed.data.kind,
         evidence_version: nextVersion,
         assignment_id: assignment.id,

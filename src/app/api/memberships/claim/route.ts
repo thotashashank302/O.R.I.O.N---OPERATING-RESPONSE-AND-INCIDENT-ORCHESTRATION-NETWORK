@@ -1,18 +1,28 @@
 import { NextRequest, NextResponse } from "next/server";
 import { claimStudentMembership } from "@/server/identity/roster";
+import { createSupabaseSessionClient } from "@/server/auth/supabase-session";
 
 export async function POST(req: NextRequest) {
   const requestId = crypto.randomUUID();
   try {
     const body = await req.json();
-    const { user_id, email, institution_code, roll_number } = body;
+    const { institution_code, roll_number } = body;
+    const session = await createSupabaseSessionClient();
+    const { data, error } = await session.auth.getUser();
 
-    if (!email || !institution_code || !roll_number) {
+    if (error || !data.user?.email) {
+      return NextResponse.json(
+        { error: { code: "UNAUTHENTICATED", message: "Login required" }, requestId },
+        { status: 401 }
+      );
+    }
+
+    if (!institution_code || !roll_number) {
       return NextResponse.json(
         {
           error: {
             code: "BAD_REQUEST",
-            message: "Missing required fields: email, institution_code, and roll_number are required",
+            message: "institution_code and roll_number are required",
           },
           requestId,
         },
@@ -20,10 +30,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const effectiveUserId = user_id || crypto.randomUUID();
     const result = await claimStudentMembership(
-      effectiveUserId,
-      email,
+      data.user.id,
+      data.user.email,
       institution_code,
       roll_number
     );

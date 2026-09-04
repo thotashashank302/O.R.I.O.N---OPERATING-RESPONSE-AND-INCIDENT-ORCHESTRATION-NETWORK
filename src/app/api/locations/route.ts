@@ -1,21 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createLocation, listLocations } from "@/server/identity/locations";
+import { requireRequestContext } from "@/server/auth/request-context";
 
 export async function GET(req: NextRequest) {
   const requestId = crypto.randomUUID();
   try {
+    const context = await requireRequestContext(req);
     const { searchParams } = new URL(req.url);
-    const institutionId = searchParams.get("institution_id");
     const kind = searchParams.get("kind") || undefined;
 
-    if (!institutionId) {
-      return NextResponse.json(
-        { error: { code: "BAD_REQUEST", message: "institution_id query parameter is required" }, requestId },
-        { status: 400 }
-      );
-    }
-
-    const locations = await listLocations(institutionId, kind);
+    const locations = await listLocations(context.institutionId, kind);
     return NextResponse.json({ data: locations, requestId });
   } catch (err: unknown) {
     return NextResponse.json(
@@ -28,19 +22,9 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const requestId = crypto.randomUUID();
   try {
-    const { searchParams } = new URL(req.url);
-    const institutionId = searchParams.get("institution_id");
+    const context = await requireRequestContext(req, ["principal", "admin"]);
     const body = await req.json();
-
-    const targetInstitutionId = institutionId || body.institution_id;
-    if (!targetInstitutionId) {
-      return NextResponse.json(
-        { error: { code: "BAD_REQUEST", message: "institution_id is required" }, requestId },
-        { status: 400 }
-      );
-    }
-
-    const result = await createLocation(targetInstitutionId, body);
+    const result = await createLocation(context.institutionId, body);
     if (!result.success) {
       return NextResponse.json(
         { error: { code: "VALIDATION_FAILED", message: result.error }, requestId },

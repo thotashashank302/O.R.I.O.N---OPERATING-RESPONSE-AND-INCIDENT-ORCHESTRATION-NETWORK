@@ -1,12 +1,12 @@
 'use client';
 
-import React, { useState } from 'react';
 import ReportForm from '@/features/reporting/components/ReportForm';
+import { useActiveContext } from '@/features/identity/use-active-context';
 
 export default function TransportReportingPage() {
-  const [routeNumber, setRouteNumber] = useState('Route 12 - North Corridor');
-  const mockInstitutionId = '11111111-1111-4111-a111-111111111111';
-  const mockMemberId = 'student-transport-001';
+  const contextState = useActiveContext();
+  const context = contextState.activeContext;
+  if (!context) return <div className="p-8 text-center text-gray-500">{contextState.error ?? 'Loading transport context…'}</div>;
 
   return (
     <div className="max-w-3xl mx-auto p-6 space-y-6">
@@ -20,24 +20,13 @@ export default function TransportReportingPage() {
         </p>
       </div>
 
-      <div className="p-4 bg-white rounded-xl border border-gray-200">
-        <label className="block text-xs font-semibold text-gray-700 mb-1">
-          Enrolled Bus Route
-        </label>
-        <select
-          value={routeNumber}
-          onChange={(e) => setRouteNumber(e.target.value)}
-          className="w-full p-2 border border-gray-300 rounded-lg text-sm bg-gray-50 outline-none"
-        >
-          <option>Route 12 - North Corridor (Bus KA-04-1234)</option>
-          <option>Route 05 - Metro Link (Bus KA-04-5678)</option>
-          <option>Route 09 - South Express (Bus KA-04-9012)</option>
-        </select>
+      <div className="p-4 bg-white rounded-xl border border-gray-200 text-sm text-gray-600">
+        Reports are scoped to your active, administrator-verified transport enrollment.
       </div>
 
       <ReportForm
-        institutionId={mockInstitutionId}
-        memberId={mockMemberId}
+        institutionId={context.institution_id}
+        memberId={context.membership_id}
         defaultScope="transport"
       />
     </div>

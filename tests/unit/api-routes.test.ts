@@ -1,10 +1,41 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+
+vi.mock('@/server/auth/request-context', () => ({
+  requireRequestContext: vi.fn(async (request: Request) => ({
+    requestId: 'test-request',
+    userId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+    institutionId: request.headers.get('x-institution-id') ?? '11111111-1111-4111-a111-111111111111',
+    membershipId: request.headers.get('x-member-id') ?? 'student-membership-001',
+    roles: ['student', 'cr'],
+    departmentIds: [],
+    sectionIds: [],
+  })),
+}));
+const persistentState = vi.hoisted(() => ({ voteCount: 0 }));
+vi.mock('@/server/reporting/persistent-service', () => ({
+  createPersistentIncident: vi.fn(async (_context: unknown, input: { categorySuggestion?: string }) => ({
+    incident: { id: '33333333-3333-4333-a333-333333333333', category: input.categorySuggestion ?? 'other' },
+    job: { id: 'job-1' },
+    rateLimitRemaining: 4,
+  })),
+  listPersistentIncidents: vi.fn(async () => []),
+  setPersistentVote: vi.fn(async (_context: unknown, _id: string, voted: boolean) => {
+    persistentState.voteCount = voted ? 1 : 0;
+    return { voteCount: persistentState.voteCount, hasVoted: voted };
+  }),
+}));
+vi.mock('@/server/reporting/upload-service', () => ({
+  authorizePrivateUpload: vi.fn(async () => ({
+    uploadUrl: 'https://storage.test/signed-upload',
+    storageKey: 'institutions/test/incidents/upload.png',
+    expiresAt: new Date(Date.now() + 60_000).toISOString(),
+    maxSizeBytes: 5 * 1024 * 1024,
+  })),
+}));
 import { NextRequest } from 'next/server';
 import { POST as createIncidentHandler } from '@/app/api/incidents/route';
 import { PUT as voteHandler, DELETE as unvoteHandler } from '@/app/api/incidents/[id]/vote/route';
 import { POST as uploadHandler } from '@/app/api/uploads/route';
-import { IncidentRepository, resetRateLimitsForTesting } from '@/server/reporting/intake-service';
-import { resetVotesForTesting } from '@/server/reporting/voting-service';
 
 describe('Developer 3: API Route Endpoints (HTTP Contract Compliance)', () => {
   const institutionId = '11111111-1111-4111-a111-111111111111';
@@ -12,9 +43,7 @@ describe('Developer 3: API Route Endpoints (HTTP Contract Compliance)', () => {
   const otherMemberId = 'student-membership-002';
 
   beforeEach(() => {
-    IncidentRepository.clear();
-    resetRateLimitsForTesting();
-    resetVotesForTesting();
+    persistentState.voteCount = 0;
   });
 
   it('POST /api/incidents creates an incident and returns 201 with standard envelope', async () => {

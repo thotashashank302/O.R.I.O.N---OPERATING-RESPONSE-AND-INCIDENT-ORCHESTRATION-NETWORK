@@ -1,20 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { grantRole } from "@/server/identity/roles";
+import { requireRequestContext } from "@/server/auth/request-context";
 
 export async function POST(req: NextRequest) {
   const requestId = crypto.randomUUID();
   try {
-    const body = await req.json();
-    const { granted_by_membership_id, ...grantInput } = body;
+    const context = await requireRequestContext(req, ["principal", "admin", "hod"]);
+    const grantInput = await req.json();
 
-    if (!granted_by_membership_id) {
-      return NextResponse.json(
-        { error: { code: "BAD_REQUEST", message: "granted_by_membership_id is required" }, requestId },
-        { status: 400 }
-      );
-    }
-
-    const result = await grantRole(granted_by_membership_id, grantInput);
+    const result = await grantRole(context.membershipId, grantInput);
 
     if (!result.success) {
       const isForbidden =

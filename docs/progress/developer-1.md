@@ -1,8 +1,8 @@
 # Developer 1 — Shashank / lead progress
 
-Current part/task: C1–C3 integration and release dependencies. Status: **blocked on external/team inputs after locally verified lead implementation**.
+Current part/task: D1–D5 integration and release verification. Status: **local code integration complete; external release gates remain**.
 
-Commit: not created in this pass; changes remain in the working tree for team-lead review.
+Integration commit: created after the checks recorded below.
 
 ## Completed locally
 
@@ -13,25 +13,29 @@ Commit: not created in this pass; changes remain in the working tree for team-le
 - B2: leased durable worker, priority claim function, dedupe schema, maximum-three-attempt retry policy, dead-job escalation, protected tick route and authorized demo-time advance.
 - B3: material replan validation, duplicate/cancellation/reopen policy helpers and safe verified-task carry-forward decisions.
 - C2 local portion: honest root README, environment template and clean production build.
+- Integrated D2 identity, D3 reporting/Triage, D4 operations/Verification and D5 UI/communications on `shashank-1`.
+- Reconciled shared database columns, role/location enums, selected-context headers, durable upload tickets and private evidence storage.
+- Replaced unhandled handover/verification job types with canonical Commander replanning and registered deterministic reminder/escalation handlers.
+- Removed development-only institution approval bypasses and placeholder identities/data from authenticated product paths.
 
 ## Actual checks
 
 - `npm install`: completed; 0 reported vulnerabilities.
 - `npm ci --ignore-scripts`: pass from the lockfile; the normal `npm ci` lifecycle run stalled in this host and was stopped. All installed tool binaries then passed the final checks below.
 - `npm run typecheck`: pass.
-- `npm run test`: pass, 13 tests across 3 files.
+- `npm run test`: pass, 98 tests across 12 files.
 - `npm run lint`: pass with zero warnings.
-- `npm run build`: pass with Next.js 16.3.4. Initial sandbox-only local port restriction was resolved by permitted rerun.
-- `supabase test db`: not run; config/migration were generated, but `supabase start` never reached Docker startup and was stopped after repeated silent waits.
-- `npm run test:e2e`: pass, one Chromium baseline test. Initial run found the browser binary absent; the pinned browser was installed and the retry passed.
+- `npx next build --webpack`: pass with Next.js 16.3.4 and 34 generated routes. Default Turbopack still fails because its CSS helper cannot bind a local port on this host.
+- `supabase test db`: not run; Docker Desktop does not answer its daemon socket. A read-only project request succeeded but confirmed the ORION schema has not been applied.
+- `npm run test:e2e`: pass, three Chromium tests. The run also found and verified the fix for conflicting `[id]`/`[incidentId]` API route segments.
+- Featherless: configured key verified with `GET /v1/plan` (HTTP 200); selected model inference timed out.
+- Resend: configured send-only key was recognized; no controlled email was sent and no webhook delivery is claimed.
 - Browser visual/console check: pass; meaningful baseline content rendered with no console errors. Product UI acceptance remains D5/user-reference dependent.
 
 ## Blockers and handoffs
 
-- D2: identity services, real session adapter, role flows and identity migration review.
-- D3: reporting service and Triage module.
-- D4: assignment/evidence/verification services and Verification module.
-- D5: Specialist module, outbox/email/webhook/notification services and approved UI reference.
-- Team/user: Supabase project, Featherless key, Resend sender/test inboxes, Cron/deployment access, official build/deadline confirmation, public deployment approval, video and submission destination.
+- Team/user: apply the two reviewed Supabase migrations to the intended isolated project, then run pgTAP and two-tenant authenticated checks.
+- Team/user: provide a controlled Resend recipient for real delivery/webhook acceptance, and enable hosted Cron/deployment when ready.
+- Provider: Featherless account authentication passes, but the selected 70B inference endpoint must respond within the application timeout before live AI acceptance.
 
-Next slice: integrate owner modules as their commits arrive, run Supabase pgTAP/two-tenant tests, one real smoke call per agent, real inbox/webhook checks, E2E, deployed worker recovery and CORE-01–06/08.
+Next slice: apply the schema in the intended Supabase project, run pgTAP/two-tenant tests, execute a controlled report-to-replan flow, verify a real inbox/webhook, then deploy and validate worker recovery.

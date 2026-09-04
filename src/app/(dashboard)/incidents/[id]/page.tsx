@@ -2,6 +2,8 @@
 
 import React, { useEffect, useState, use } from 'react';
 import Link from 'next/link';
+import { orionContextHeaders, useActiveContext } from '@/features/identity/use-active-context';
+import type { UserContextItem } from '@/contracts/identity';
 
 interface IncidentDetails {
   id: string;
@@ -15,12 +17,9 @@ interface IncidentDetails {
   clarificationRequest?: { question: string } | null;
 }
 
-async function loadIncident(incidentId: string): Promise<IncidentDetails> {
+async function loadIncident(incidentId: string, context: UserContextItem): Promise<IncidentDetails> {
   const response = await fetch(`/api/incidents/${incidentId}`, {
-    headers: {
-      'x-institution-id': '11111111-1111-4111-a111-111111111111',
-      'x-member-id': 'student-membership-001',
-    },
+    headers: orionContextHeaders(context),
   });
   const payload = (await response.json()) as {
     data?: { incident?: IncidentDetails };
@@ -43,6 +42,8 @@ export default function IncidentDetailPage({
   const [incident, setIncident] = useState<IncidentDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const contextState = useActiveContext();
+  const activeContext = contextState.activeContext;
 
   // Clarification form
   const [clarificationAnswer, setClarificationAnswer] = useState('');
@@ -52,12 +53,10 @@ export default function IncidentDetailPage({
   const [verificationReason, setVerificationReason] = useState('');
   const [isSubmittingVerification, setIsSubmittingVerification] = useState(false);
 
-  const mockMemberId = 'student-membership-001';
-
   const fetchIncident = async () => {
     try {
       setLoading(true);
-      setIncident(await loadIncident(incidentId));
+      if (activeContext) setIncident(await loadIncident(incidentId, activeContext));
     } catch (err: unknown) {
       setErrorMsg(err instanceof Error ? err.message : 'Error loading details');
     } finally {
@@ -67,7 +66,8 @@ export default function IncidentDetailPage({
 
   useEffect(() => {
     let cancelled = false;
-    loadIncident(incidentId)
+    if (!activeContext) return;
+    loadIncident(incidentId, activeContext)
       .then((nextIncident) => {
         if (!cancelled) setIncident(nextIncident);
       })
@@ -82,7 +82,7 @@ export default function IncidentDetailPage({
     return () => {
       cancelled = true;
     };
-  }, [incidentId]);
+  }, [incidentId, activeContext]);
 
   const handleClarificationSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -94,7 +94,7 @@ export default function IncidentDetailPage({
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-member-id': mockMemberId,
+          ...orionContextHeaders(activeContext!),
         },
         body: JSON.stringify({
           answer: clarificationAnswer,
@@ -125,8 +125,7 @@ export default function IncidentDetailPage({
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-member-id': mockMemberId,
-          'x-member-roles': 'student,cr',
+          ...orionContextHeaders(activeContext!),
         },
         body: JSON.stringify({
           decision,
@@ -146,7 +145,11 @@ export default function IncidentDetailPage({
     }
   };
 
-  if (loading) {
+  if (!contextState.loading && !activeContext) {
+    return <div className="p-8 text-center text-gray-500">{contextState.error ?? 'No active campus membership'}</div>;
+  }
+
+  if (loading || contextState.loading) {
     return (
       <div className="max-w-3xl mx-auto p-8 text-center text-gray-500">
         <div className="animate-spin text-3xl mb-2">⚙️</div>

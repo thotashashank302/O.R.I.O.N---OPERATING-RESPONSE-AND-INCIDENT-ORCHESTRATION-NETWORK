@@ -44,6 +44,9 @@ export async function updateStaffCapabilities(
   }
 
   const db = await createServiceClient();
+  const { data: membership } = await db.from("institution_memberships")
+    .select("institution_id").eq("id", membershipId).maybeSingle();
+  if (!membership) return { success: false, error: "Membership not found." };
 
   const { data: existing } = await db
     .from("staff_capabilities")
@@ -60,7 +63,7 @@ export async function updateStaffCapabilities(
         skills: parsed.data.skills,
         zones: parsed.data.zones,
         workload_limit: parsed.data.workload_limit,
-        updated_by: updatedByMembershipId || null,
+        updated_by: updatedByMembershipId || membershipId,
         updated_at: now,
       })
       .eq("id", existing.id)
@@ -72,12 +75,13 @@ export async function updateStaffCapabilities(
   } else {
     const newCap: StaffCapability = {
       id: crypto.randomUUID(),
+      institution_id: membership.institution_id,
       membership_id: membershipId,
       skills: parsed.data.skills,
       zones: parsed.data.zones,
       availability: "off_duty", // Starts off_duty by default
       workload_limit: parsed.data.workload_limit,
-      updated_by: updatedByMembershipId || null,
+      updated_by: updatedByMembershipId || membershipId,
       updated_at: now,
     };
 
@@ -126,7 +130,8 @@ export function checkConfidentialCaseAccess(
  */
 export async function enrollTransport(
   input: TransportEnrollmentInput,
-  verifiedByMembershipId?: string
+  verifiedByMembershipId: string,
+  institutionId: string
 ): Promise<{ success: boolean; data?: TransportEnrollment; error?: string }> {
   const db = await createServiceClient();
 
@@ -140,7 +145,15 @@ export async function enrollTransport(
     created_at: new Date().toISOString(),
   };
 
-  const { error } = await db.from("transport_enrollments").insert(newEnrollment);
+  const { error } = await db.from("transport_enrollments").insert({
+    id: newEnrollment.id,
+    institution_id: institutionId,
+    membership_id: newEnrollment.membership_id,
+    route_code: newEnrollment.route_id,
+    bus_code: newEnrollment.bus_number,
+    verified_by: verifiedByMembershipId,
+    active: true,
+  });
   if (error) return { success: false, error: error.message };
   return { success: true, data: newEnrollment };
 }
@@ -150,9 +163,15 @@ export async function enrollTransport(
  */
 export async function createClubTerm(
   institutionId: string,
-  input: ClubTermInput
+  input: ClubTermInput,
+  grantedByMembershipId: string
 ): Promise<{ success: boolean; data?: ClubTerm; error?: string }> {
   const db = await createServiceClient();
+
+  const { data: club, error: clubError } = await db.from("clubs")
+    .upsert({ institution_id: institutionId, name: input.club_name }, { onConflict: "institution_id,name" })
+    .select("id").single();
+  if (clubError || !club) return { success: false, error: clubError?.message ?? "Club could not be created." };
 
   const newTerm: ClubTerm = {
     id: crypto.randomUUID(),
@@ -164,17 +183,26 @@ export async function createClubTerm(
     created_at: new Date().toISOString(),
   };
 
-  const { error } = await db.from("club_terms").insert(newTerm);
+  const { error } = await db.from("club_terms").insert({
+    id: newTerm.id,
+    institution_id: institutionId,
+    club_id: club.id,
+    president_membership_id: input.president_membership_id,
+    starts_at: input.starts_at,
+    ends_at: input.ends_at,
+  });
   if (error) return { success: false, error: error.message };
 
   // Grant club_president role for the term
   await db.from("role_grants").insert({
     id: crypto.randomUUID(),
+    institution_id: institutionId,
     membership_id: input.president_membership_id,
-    role: "club_president",
-    club_id: newTerm.id,
+    role: "president",
+    club_id: club.id,
     starts_at: input.starts_at,
     ends_at: input.ends_at,
+    granted_by: grantedByMembershipId,
   });
 
   return { success: true, data: newTerm };

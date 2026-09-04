@@ -75,7 +75,9 @@ describe("Staff Eligibility & Confidential Access (RP-03 & B2)", () => {
         select: vi.fn().mockReturnThis(),
         insert: vi.fn().mockResolvedValue({ error: null }),
         eq: vi.fn().mockReturnThis(),
-        maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }), // No existing capabilities
+        maybeSingle: vi.fn()
+          .mockResolvedValueOnce({ data: { institution_id: "inst-1" }, error: null })
+          .mockResolvedValueOnce({ data: null, error: null }), // No existing capabilities
       };
       (createServiceClient as any).mockResolvedValue(mockDb);
 

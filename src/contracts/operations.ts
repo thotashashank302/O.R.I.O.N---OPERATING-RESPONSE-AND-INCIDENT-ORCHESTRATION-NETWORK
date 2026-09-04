@@ -47,7 +47,7 @@ export type IncidentState =
   | "escalated"
   | "cancelled";
 
-export type EvidenceKind = "note" | "functional_test" | "photo_ref";
+export type EvidenceKind = "note" | "test_result" | "photo";
 export type VerificationVerdict = "verified" | "failed" | "pending_human";
 
 // ─────────────────────────────────────────────
@@ -71,7 +71,8 @@ export interface Assignment {
   assignee_membership_id: string;
   state: AssignmentState;
   acknowledgement_deadline: string | null;
-  active_version: number;
+  version: number;
+  active_version: boolean;
   created_at: string;
   updated_at: string;
   // Joined fields
@@ -90,7 +91,7 @@ export interface Task {
   requires_approval: boolean;
   depends_on: string[];
   designated_verifier_membership_id: string | null;
-  verifier_deadline: string | null;
+  verifier_due_at: string | null;
 }
 
 export interface IncidentSummary {

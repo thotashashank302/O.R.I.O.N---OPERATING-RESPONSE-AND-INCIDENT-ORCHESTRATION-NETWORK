@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { UserContextItem } from "@/contracts/identity";
+import { selectOrionContext, useActiveContext } from "./use-active-context";
 
 interface ContextSwitcherProps {
   currentContext?: UserContextItem | null;
@@ -13,42 +14,21 @@ export function ContextSwitcher({
   onContextChange,
 }: ContextSwitcherProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [contexts] = useState<UserContextItem[]>([
-    {
-      institution_id: "demo-inst-1",
-      institution_name: "ORION Institute of Technology",
-      institution_code: "ORION-DEMO",
-      membership_id: "demo-member-1",
-      membership_status: "active",
-      roles: [
-        { role: "admin" },
-        { role: "principal" },
-        { role: "hod", department_name: "Computer Science" },
-      ],
-    },
-    {
-      institution_id: "demo-inst-2",
-      institution_name: "North Campus Engineering",
-      institution_code: "NCE-TECH",
-      membership_id: "demo-member-2",
-      membership_status: "active",
-      roles: [
-        { role: "cr", department_name: "Electronics", section: "A", seat_number: 1 },
-      ],
-    },
-  ]);
-
-  const [active, setActive] = useState<UserContextItem>(
-    currentContext || contexts[0]
-  );
+  const loaded = useActiveContext();
+  const contexts = loaded.contexts;
+  const active = currentContext ?? loaded.activeContext;
 
   const handleSelect = (ctx: UserContextItem) => {
-    setActive(ctx);
+    selectOrionContext(ctx);
     setIsOpen(false);
     if (onContextChange) {
       onContextChange(ctx);
     }
   };
+
+  if (!active) {
+    return <span className="text-xs text-slate-400">{loaded.loading ? "Loading context…" : loaded.error ?? "No active membership"}</span>;
+  }
 
   return (
     <div className="relative inline-block text-left">

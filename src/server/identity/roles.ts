@@ -29,8 +29,8 @@ interface MembershipContextRow {
 interface ContextGrantRow {
   role: RoleEnum;
   department_id: string | null;
-  section: string | null;
-  seat_number: number | null;
+  section_id: string | null;
+  cr_seat: number | null;
   club_id: string | null;
   departments: { name: string } | null;
 }
@@ -141,8 +141,8 @@ export async function grantRole(
       .select("id, membership_id")
       .eq("role", "cr")
       .eq("department_id", parsed.data.department_id)
-      .eq("section", parsed.data.section)
-      .eq("seat_number", seatNumber)
+      .eq("section_id", parsed.data.section)
+      .eq("cr_seat", seatNumber)
       .is("revoked_at", null)
       .maybeSingle();
 
@@ -159,7 +159,7 @@ export async function grantRole(
       .select("id")
       .eq("role", "cr")
       .eq("department_id", parsed.data.department_id)
-      .eq("section", parsed.data.section)
+      .eq("section_id", parsed.data.section)
       .is("revoked_at", null);
 
     if (totalActiveCRs && totalActiveCRs.length >= 2) {
@@ -185,7 +185,19 @@ export async function grantRole(
     revocation_reason: null,
   };
 
-  const { error } = await db.from("role_grants").insert(newGrant);
+  const { error } = await db.from("role_grants").insert({
+    id: newGrant.id,
+    institution_id: grantorMembership.institution_id,
+    membership_id: newGrant.membership_id,
+    role: newGrant.role,
+    department_id: newGrant.department_id,
+    section_id: newGrant.section,
+    cr_seat: newGrant.seat_number,
+    club_id: newGrant.club_id,
+    starts_at: newGrant.starts_at,
+    ends_at: newGrant.ends_at,
+    granted_by: grantedByMembershipId,
+  });
   if (error) {
     return { success: false, error: error.message };
   }
@@ -204,7 +216,7 @@ export async function revokeRole(
   // 1. Fetch existing grant
   const { data: grant } = await db
     .from("role_grants")
-    .select("*, institution_memberships!inner(institution_id)")
+    .select("id,institution_id,membership_id,role,department_id,section_id,cr_seat,club_id,starts_at,ends_at,revoked_at")
     .eq("id", grantId)
     .is("revoked_at", null)
     .maybeSingle();
@@ -244,6 +256,7 @@ export async function revokeRole(
     .from("role_grants")
     .update({
       revoked_at: now,
+      revoked_by: revokedByMembershipId,
       revocation_reason: reason,
     })
     .eq("id", grantId);
@@ -254,23 +267,23 @@ export async function revokeRole(
 
   // 4. Reassign stranded verifications (CORE-02 / 09_EXECUTION_DECISIONS section 3)
   // If the revoked grant was a CR or verifier, reassign pending incidents to remaining CR or HOD
-  if (grant.role === "cr" && grant.department_id && grant.section) {
+  if (grant.role === "cr" && grant.department_id && grant.section_id) {
     const { data: remainingCR } = await db
       .from("role_grants")
       .select("membership_id")
       .eq("role", "cr")
       .eq("department_id", grant.department_id)
-      .eq("section", grant.section)
+      .eq("section_id", grant.section_id)
       .is("revoked_at", null)
       .maybeSingle();
 
     const fallbackVerifierId = remainingCR?.membership_id || revokedByMembershipId;
 
     await db
-      .from("incidents")
+      .from("incident_tasks")
       .update({ designated_verifier_membership_id: fallbackVerifierId })
       .eq("designated_verifier_membership_id", grant.membership_id)
-      .in("state", ["assigned", "in_progress", "submitted_for_verification"]);
+      .in("state", ["assigned", "in_progress", "submitted"]);
   }
 
   // 5. If replacement is requested, grant the same seat to replacement member
@@ -279,8 +292,8 @@ export async function revokeRole(
       membership_id: replacementMembershipId,
       role: grant.role as RoleEnum,
       department_id: grant.department_id,
-      section: grant.section,
-      seat_number: grant.seat_number,
+      section: grant.section_id,
+      seat_number: grant.cr_seat,
       club_id: grant.club_id,
     });
   }
@@ -291,7 +304,11 @@ export async function revokeRole(
 /**
  * Retrieves all institution contexts and active roles for a user.
  */
-export async function getUserContexts(userId: string): Promise<UserContextResponse | null> {
+export async function getUserContexts(
+  userId: string,
+  email = "unknown@example.invalid",
+  displayName = ""
+): Promise<UserContextResponse | null> {
   const db = await createServiceClient();
 
   const { data: memberships, error } = await db
@@ -317,8 +334,8 @@ export async function getUserContexts(userId: string): Promise<UserContextRespon
       .select(`
         role,
         department_id,
-        section,
-        seat_number,
+        section_id,
+        cr_seat,
         club_id,
         departments(name)
       `)
@@ -335,8 +352,8 @@ export async function getUserContexts(userId: string): Promise<UserContextRespon
         role: g.role,
         department_id: g.department_id,
         department_name: g.departments?.name || null,
-        section: g.section,
-        seat_number: g.seat_number,
+        section: g.section_id,
+        seat_number: g.cr_seat,
         club_id: g.club_id,
       })),
     });
@@ -347,8 +364,8 @@ export async function getUserContexts(userId: string): Promise<UserContextRespon
 
   return {
     user_id: userId,
-    email: "",
-    display_name: "",
+    email,
+    display_name: displayName,
     contexts,
     active_context: activeContext,
   };

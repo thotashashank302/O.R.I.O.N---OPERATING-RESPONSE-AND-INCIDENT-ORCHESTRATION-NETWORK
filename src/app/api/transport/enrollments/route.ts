@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { enrollTransport } from "@/server/identity/eligibility";
+import { requireRequestContext } from "@/server/auth/request-context";
 
 export async function POST(req: NextRequest) {
   const requestId = crypto.randomUUID();
   try {
+    const context = await requireRequestContext(req, ["principal", "admin", "transport_admin"]);
     const body = await req.json();
-    const result = await enrollTransport(body);
+    const result = await enrollTransport(body, context.membershipId, context.institutionId);
 
     if (!result.success) {
       return NextResponse.json(

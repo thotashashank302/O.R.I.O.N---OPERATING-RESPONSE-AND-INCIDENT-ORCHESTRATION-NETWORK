@@ -1,6 +1,6 @@
 # Developer 5 progress
 
-Status: core implementation complete locally; live communications and full shared UI remain blocked by external inputs.
+Status: core implementation integrated locally; live communications remain blocked by external acceptance inputs.
 
 Implemented:
 
@@ -26,10 +26,10 @@ Local verification on 4 September 2026:
 
 Still required before Developer 5 can be called externally complete:
 
-- Complete the still-empty communications values in the current `.env`: `RESEND_FROM`, `RESEND_WEBHOOK_SECRET`, `DEMO_RECIPIENT_ALLOWLIST` and `DEMO_ADMIN_EMAILS`. The API/action/automation secret fields are present but have not been validated against live providers. Never commit any of them.
+- The current environment contains the required server values without committing them. The Resend credential is a recognized send-only key; controlled delivery and webhook acceptance are still required.
 - Apply the migration to an isolated/linked Supabase project and run pgTAP plus authenticated two-user tests. No local Supabase CLI/database was available in this checkout.
 - Send to controlled inboxes, retain provider IDs privately, receive signed webhooks and measure assignment-to-inbox latency. Fixture/build tests do not prove delivery.
-- Supply/approve the UI reference before the shared application shell and D2 context selector are implemented. The current secure action page only extends the incumbent minimal visual system.
-- Integrate D2 identity/context, D3 intake/Triage and D4 operations/Verification services for the full incident loop.
+- The D2 context selector and shared product routes are integrated. Final visual acceptance can still be refined against an approved reference.
+- D2 identity/context, D3 intake/Triage and D4 operations/Verification services are now integrated into the local full-loop code path.
 - Optional intro remains P2 and should be skipped until core integration is stable and its design/form is approved.
 - Deployment, communications QA on the hosted URL, and demo recording/package remain pending.

@@ -11,7 +11,8 @@ import {
 } from "@/contracts/identity";
 
 export async function createInstitution(
-  input: InstitutionCreateInput
+  input: InstitutionCreateInput,
+  creator?: { userId: string; displayName: string }
 ): Promise<{ success: boolean; data?: Institution; error?: string }> {
   const parsed = InstitutionCreateInputSchema.safeParse(input);
   if (!parsed.success) {
@@ -45,24 +46,36 @@ export async function createInstitution(
     return { success: false, error: error.message };
   }
 
+  if (creator) {
+    const membershipId = crypto.randomUUID();
+    const { error: profileError } = await db.from("profiles").upsert({
+      id: creator.userId,
+      display_name: creator.displayName,
+    });
+    if (profileError) return { success: false, error: profileError.message };
+    const { error: membershipError } = await db.from("institution_memberships").insert({
+      id: membershipId,
+      institution_id: newInst.id,
+      user_id: creator.userId,
+      status: "active",
+    });
+    if (membershipError) return { success: false, error: membershipError.message };
+    const { error: grantError } = await db.from("role_grants").insert({
+      institution_id: newInst.id,
+      membership_id: membershipId,
+      role: "principal",
+      granted_by: membershipId,
+    });
+    if (grantError) return { success: false, error: grantError.message };
+  }
+
   return { success: true, data: newInst };
 }
 
 export async function approveInstitution(
   id: string,
-  adminEmail: string
+  adminUserId: string
 ): Promise<{ success: boolean; data?: Institution; error?: string }> {
-  // Allowlisted demo bootstrap or configured admin email check
-  const allowedAdmins = (process.env.DEMO_ADMIN_EMAILS || "demo.admin@orion.edu,principal@orion.edu,admin@orion.edu")
-    .split(",")
-    .map((e) => e.trim().toLowerCase());
-
-  const isDemoMode = process.env.DEMO_MODE === "true" || process.env.NODE_ENV !== "production";
-
-  if (!isDemoMode && !allowedAdmins.includes(adminEmail.toLowerCase())) {
-    return { success: false, error: "Unauthorized: Admin email is not in the allowlist for bootstrap approval." };
-  }
-
   const db = await createServiceClient();
 
   const { data: inst, error: fetchErr } = await db
@@ -78,12 +91,12 @@ export async function approveInstitution(
   const updated: Institution = {
     ...inst,
     approval_state: "approved",
-    approved_by: adminEmail,
+    approved_by: adminUserId,
   };
 
   const { error } = await db
     .from("institutions")
-    .update({ approval_state: "approved", approved_by: adminEmail })
+    .update({ approval_state: "approved", approved_by: adminUserId })
     .eq("id", id);
 
   if (error) {

@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 import { jsonSuccess, jsonError } from '@/server/http-envelope';
-import { castVote, removeVote } from '@/server/reporting/voting-service';
+import { requireRequestContext } from '@/server/auth/request-context';
+import { setPersistentVote } from '@/server/reporting/persistent-service';
 
 export async function PUT(
   req: NextRequest,
@@ -8,14 +9,9 @@ export async function PUT(
 ) {
   try {
     const { id } = await params;
-    const memberId = req.headers.get('x-member-id');
-    const institutionId = req.headers.get('x-institution-id');
+    const context = await requireRequestContext(req);
 
-    if (!memberId || !institutionId) {
-      return jsonError('UNAUTHENTICATED', 'Missing member or institution context', 401);
-    }
-
-    const result = await castVote(id, { id: memberId, institutionId });
+    const result = await setPersistentVote(context, id, true);
     return jsonSuccess(result);
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Failed to cast vote';
@@ -38,14 +34,9 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
-    const memberId = req.headers.get('x-member-id');
-    const institutionId = req.headers.get('x-institution-id');
+    const context = await requireRequestContext(req);
 
-    if (!memberId || !institutionId) {
-      return jsonError('UNAUTHENTICATED', 'Missing member or institution context', 401);
-    }
-
-    const result = await removeVote(id, { id: memberId, institutionId });
+    const result = await setPersistentVote(context, id, false);
     return jsonSuccess(result);
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Failed to remove vote';

@@ -101,9 +101,96 @@ export function createProductionWorker(): DurableJobWorker {
     });
   };
 
+  const payloadId = (job: JobRecord, ...keys: string[]) => {
+    for (const key of keys) {
+      const value = job.payload[key];
+      if (typeof value === "string" && value.length > 0) return value;
+    }
+    throw new Error(`${job.type} job is missing its target id`);
+  };
+
+  const handleAckReminder = async (job: JobRecord) => {
+    const assignmentId = payloadId(job, "assignmentId", "assignment_id");
+    const { data: assignment, error } = await client.from("assignments")
+      .select("id,state,assignee_membership_id")
+      .eq("id", assignmentId)
+      .eq("institution_id", job.institutionId)
+      .maybeSingle();
+    if (error) throw error;
+    if (!assignment || assignment.state !== "offered") return;
+    const { error: notifyError } = await client.from("notifications").insert({
+      institution_id: job.institutionId,
+      recipient_membership_id: assignment.assignee_membership_id,
+      safe_text: "Reminder: an ORION task is waiting for your acknowledgement.",
+      link: `/assignments/${assignment.id}`,
+    });
+    if (notifyError) throw notifyError;
+  };
+
+  const notifySupervisors = async (job: JobRecord, safeText: string, action: string) => {
+    if (!job.incidentId) throw new Error(`${job.type} job requires an incident`);
+    const { data: grants, error } = await client.from("role_grants")
+      .select("membership_id")
+      .eq("institution_id", job.institutionId)
+      .in("role", ["principal", "hod", "supervisor"])
+      .is("revoked_at", null);
+    if (error) throw error;
+    if ((grants ?? []).length > 0) {
+      const { error: notifyError } = await client.from("notifications").insert((grants ?? []).map((grant) => ({
+        institution_id: job.institutionId,
+        recipient_membership_id: grant.membership_id,
+        safe_text: safeText,
+        link: `/incidents/${job.incidentId}`,
+      })));
+      if (notifyError) throw notifyError;
+    }
+    const { error: eventError } = await client.from("incident_events").insert({
+      institution_id: job.institutionId,
+      incident_id: job.incidentId,
+      actor_type: "system",
+      action,
+      safe_payload: job.payload,
+    });
+    if (eventError) throw eventError;
+  };
+
+  const handleAssignmentEscalation = (job: JobRecord) => notifySupervisors(
+    job,
+    "An ORION assignment missed its acknowledgement deadline and requires review.",
+    "assignment_acknowledgement_escalated",
+  );
+
+  const handleVerifierReminder = async (job: JobRecord) => {
+    const taskId = payloadId(job, "taskId", "task_id");
+    const { data: task, error } = await client.from("incident_tasks")
+      .select("id,state,designated_verifier_membership_id")
+      .eq("id", taskId)
+      .eq("institution_id", job.institutionId)
+      .maybeSingle();
+    if (error) throw error;
+    if (!task || task.state !== "submitted" || !task.designated_verifier_membership_id) return;
+    const { error: notifyError } = await client.from("notifications").insert({
+      institution_id: job.institutionId,
+      recipient_membership_id: task.designated_verifier_membership_id,
+      safe_text: "Reminder: an ORION task is awaiting your verification.",
+      link: job.incidentId ? `/incidents/${job.incidentId}` : null,
+    });
+    if (notifyError) throw notifyError;
+  };
+
+  const handleVerifierEscalation = (job: JobRecord) => notifySupervisors(
+    job,
+    "An ORION task missed its verification deadline and requires reassignment.",
+    "verification_deadline_escalated",
+  );
+
   return new DurableJobWorker(new SupabaseJobStore(client), {
     commander: handleCommander,
     specialist: handleSpecialist,
+    ack_reminder: handleAckReminder,
+    assignment_escalation: handleAssignmentEscalation,
+    verifier_reminder: handleVerifierReminder,
+    verifier_escalation: handleVerifierEscalation,
     outbox_delivery: handleOutbox,
   });
 }

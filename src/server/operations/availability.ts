@@ -19,6 +19,7 @@ import type {
   AvailabilityUpdateRequest,
   Assignment,
 } from "@/contracts/operations";
+import { enqueueCommanderJob } from "@/server/orchestration/commander-enqueue";
 
 export interface AvailabilityUpdateResult {
   new_state: AvailabilityState;
@@ -43,7 +44,7 @@ export async function updateAvailability(
   // 1. Fetch current capability record
   const { data: cap, error: capError } = await supabase
     .from("staff_capabilities")
-    .select("id, availability, workload_limit, updated_at")
+    .select("id, availability, workload_limit, version, updated_at")
     .eq("membership_id", membershipId)
     .single();
 
@@ -53,12 +54,8 @@ export async function updateAvailability(
     });
   }
 
-  // 2. Version check (using updated_at as optimistic lock proxy until D1 adds version column)
-  // expected_version encodes as epoch seconds of updated_at
-  const currentEpoch = Math.floor(
-    new Date(cap.updated_at as string).getTime() / 1000
-  );
-  if (request.expected_version !== currentEpoch) {
+  // 2. Optimistic version check against the canonical integer version.
+  if (request.expected_version !== cap.version) {
     throw Object.assign(
       new Error("Stale availability record — reload and try again"),
       { status: 409 }
@@ -86,9 +83,11 @@ export async function updateAvailability(
     .update({
       availability: request.state,
       updated_by: membershipId,
+      version: cap.version + 1,
       updated_at: now,
     })
-    .eq("membership_id", membershipId);
+    .eq("membership_id", membershipId)
+    .eq("version", request.expected_version);
 
   if (updateError) {
     throw Object.assign(
@@ -104,26 +103,28 @@ export async function updateAvailability(
     request.open_task_choice === "handover" &&
     openTasks.length > 0
   ) {
-    await createHandoverEvents(supabase, membershipId, openTasks, request.reason);
+    await createHandoverEvents(supabase, institutionId, membershipId, openTasks, request.reason);
     handoverCreated = true;
   }
 
   // 6. Emit audit event
   await supabase.from("audit_events").insert({
+    institution_id: institutionId,
     actor_membership_id: membershipId,
-    entity_type: "staff_capability",
-    entity_id: cap.id,
-    previous_value: { availability: cap.availability },
-    new_value: { availability: request.state },
-    reason: request.reason ?? null,
+    action: "staff_availability_changed",
+    target_type: "staff_capability",
+    target_id: cap.id,
+    safe_payload: {
+      previous: { availability: cap.availability },
+      next: { availability: request.state },
+      reason: request.reason ?? null,
+    },
     created_at: now,
   });
 
-  const newEpoch = Math.floor(new Date(now).getTime() / 1000);
-
   return {
     new_state: request.state,
-    capability_version: newEpoch,
+    capability_version: cap.version + 1,
     open_tasks: openTasks,
     handover_created: handoverCreated,
   };
@@ -138,7 +139,7 @@ export async function getOpenAssignments(
 ): Promise<Assignment[]> {
   const { data, error } = await supabase
     .from("assignments")
-    .select("id, task_id, assignee_membership_id, state, acknowledgement_deadline, active_version, created_at, updated_at")
+    .select("id, task_id, assignee_membership_id, state, acknowledgement_deadline, version, active_version, created_at, updated_at")
     .eq("assignee_membership_id", membershipId)
     .in("state", ["offered", "acknowledged", "active"]);
 
@@ -152,6 +153,7 @@ export async function getOpenAssignments(
  */
 async function createHandoverEvents(
   supabase: Awaited<ReturnType<typeof createClient>>,
+  institutionId: string,
   membershipId: string,
   assignments: Assignment[],
   reason?: string
@@ -159,6 +161,12 @@ async function createHandoverEvents(
   const now = new Date().toISOString();
 
   for (const assignment of assignments) {
+    const { data: task } = await supabase.from("incident_tasks").select("plan_id")
+      .eq("id", assignment.task_id).eq("institution_id", institutionId).maybeSingle();
+    const { data: plan } = task
+      ? await supabase.from("incident_plans").select("incident_id").eq("id", task.plan_id).maybeSingle()
+      : { data: null };
+    if (!plan?.incident_id) continue;
     // Mark assignment as handover_requested
     await supabase
       .from("assignments")
@@ -166,27 +174,21 @@ async function createHandoverEvents(
       .eq("id", assignment.id);
 
     // Queue a handover job for D1's runner
-    await supabase.from("jobs").insert({
-      type: "handover_requested",
-      payload: {
-        assignment_id: assignment.id,
-        requester_membership_id: membershipId,
-        reason: reason ?? "Staff went off duty",
-        triggered_by: "availability_change",
-      },
-      status: "queued",
-      due_at: now,
-      attempt: 0,
-      dedupe_key: `availability-handover-${assignment.id}-${Date.now()}`,
-    });
+    await enqueueCommanderJob(
+      plan.incident_id,
+      reason ?? `Assignment ${assignment.id} requires handover because staff went off duty`,
+      `availability-handover-${assignment.id}`,
+    );
 
     // Append incident event
     await supabase.from("incident_events").insert({
-      entity_type: "assignment",
-      entity_id: assignment.id,
+      institution_id: institutionId,
+      incident_id: plan.incident_id,
       actor_membership_id: membershipId,
-      event_type: "handover_requested",
-      payload: {
+      actor_type: "human",
+      action: "handover_requested",
+      safe_payload: {
+        assignment_id: assignment.id,
         reason: reason ?? "Staff went off duty",
         triggered_by: "availability_change",
       },
@@ -207,7 +209,7 @@ export async function getAvailability(membershipId: string): Promise<{
 
   const { data, error } = await supabase
     .from("staff_capabilities")
-    .select("availability, workload_limit, updated_at")
+    .select("availability, workload_limit, version")
     .eq("membership_id", membershipId)
     .single();
 
@@ -215,7 +217,7 @@ export async function getAvailability(membershipId: string): Promise<{
 
   return {
     state: data.availability as AvailabilityState,
-    version: Math.floor(new Date(data.updated_at as string).getTime() / 1000),
+    version: data.version as number,
     workload_limit: data.workload_limit as number,
   };
 }

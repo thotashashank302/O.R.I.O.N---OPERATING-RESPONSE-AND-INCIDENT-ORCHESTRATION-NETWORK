@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { orionContextHeaders, useActiveContext } from "./use-active-context";
 
 export interface MemberItem {
   id: string;
@@ -24,52 +25,8 @@ export function MembershipList({
   onToggleStatus,
   onOpenRoleModal,
 }: MembershipListProps) {
-  const [members, setMembers] = useState<MemberItem[]>(
-    initialMembers || [
-      {
-        id: "mem-01",
-        name: "Dr. Shashank Thota",
-        email: "principal@orion.edu",
-        roles: ["principal", "admin"],
-        status: "active",
-      },
-      {
-        id: "mem-02",
-        name: "Dr. Arvind Rao",
-        email: "hod.cs@orion.edu",
-        department: "Computer Science",
-        roles: ["hod"],
-        status: "active",
-      },
-      {
-        id: "mem-03",
-        name: "Rahul Verma (CR 1)",
-        email: "rahul.v@orion.edu",
-        rollNumber: "2024CSB101",
-        department: "Computer Science",
-        section: "A",
-        roles: ["cr", "student"],
-        status: "active",
-      },
-      {
-        id: "mem-04",
-        name: "Pooja Sharma (CR 2)",
-        email: "pooja.s@orion.edu",
-        rollNumber: "2024CSB102",
-        department: "Computer Science",
-        section: "A",
-        roles: ["cr", "student"],
-        status: "active",
-      },
-      {
-        id: "mem-05",
-        name: "Vikram Tech (Staff)",
-        email: "vikram.tech@orion.edu",
-        roles: ["staff"],
-        status: "active",
-      },
-    ]
-  );
+  const { activeContext } = useActiveContext();
+  const [members, setMembers] = useState<MemberItem[]>(initialMembers ?? []);
 
   const [search, setSearch] = useState("");
 
@@ -84,7 +41,7 @@ export function MembershipList({
     try {
       await fetch(`/api/memberships/${id}/status`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...(activeContext ? orionContextHeaders(activeContext) : {}) },
         body: JSON.stringify({ status: nextStatus }),
       });
       if (onToggleStatus) onToggleStatus(id, nextStatus);

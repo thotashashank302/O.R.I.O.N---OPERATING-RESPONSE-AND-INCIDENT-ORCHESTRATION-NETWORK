@@ -1,7 +1,8 @@
 import { NextRequest } from 'next/server';
 import { jsonSuccess, jsonError } from '@/server/http-envelope';
-import { submitReporterConfirmation } from '@/server/reporting/confirmation-service';
 import { ReporterConfirmationSchema } from '@/contracts/reporting';
+import { requireRequestContext } from '@/server/auth/request-context';
+import { confirmPersistentIncident } from '@/server/reporting/persistent-service';
 
 export async function POST(
   req: NextRequest,
@@ -9,13 +10,7 @@ export async function POST(
 ) {
   try {
     const { id } = await params;
-    const memberId = req.headers.get('x-member-id');
-    const rolesHeader = req.headers.get('x-member-roles') || '';
-    const roles = rolesHeader.split(',').filter(Boolean);
-
-    if (!memberId) {
-      return jsonError('UNAUTHENTICATED', 'Missing authenticated member context', 401);
-    }
+    const context = await requireRequestContext(req);
 
     const body = await req.json();
     const validated = ReporterConfirmationSchema.safeParse({
@@ -27,9 +22,13 @@ export async function POST(
       return jsonError('VALIDATION_ERROR', validated.error.message, 422);
     }
 
-    const result = await submitReporterConfirmation(memberId, validated.data, {
-      verifierRoles: roles,
-    });
+    const result = await confirmPersistentIncident(
+      context,
+      id,
+      validated.data.decision,
+      validated.data.reason,
+      validated.data.expectedVersion,
+    );
 
     return jsonSuccess({
       incident: result.incident,

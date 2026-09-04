@@ -44,10 +44,8 @@ interface RawApprovalRow {
   id: string;
   action_payload_hash: string;
   plan_version: number;
-  action_description: string | null;
-  profiles: { display_name: string | null } | null;
   incident_id: string;
-  is_high_risk: boolean | null;
+  incident: { severity: string } | null;
   created_at: string;
 }
 
@@ -83,9 +81,9 @@ export default async function HODPage() {
   // Resolve active membership
   const { data: membership } = await supabase
     .from("institution_memberships")
-    .select("id, institution_id, state")
+    .select("id, institution_id, status")
     .eq("user_id", user.id)
-    .eq("state", "active")
+    .eq("status", "active")
     .maybeSingle();
 
   if (!membership) {
@@ -114,13 +112,11 @@ export default async function HODPage() {
       action_payload_hash,
       plan_version,
       created_at,
-      requested_by_membership_id,
-      profiles!requested_by_membership_id(display_name),
-      action_description,
-      is_high_risk,
-      incident_id
+      incident_id,
+      incident:incidents(severity)
     `
     )
+    .eq("institution_id", membership.institution_id)
     .is("decision", null)
     .order("created_at", { ascending: true })
     .limit(20);
@@ -150,10 +146,10 @@ export default async function HODPage() {
     id: a.id,
     action_payload_hash: a.action_payload_hash,
     plan_version: a.plan_version,
-    action_description: a.action_description ?? "Pending action requiring HOD approval",
-    requested_by_name: a.profiles?.display_name ?? "Unknown",
+    action_description: "Pending orchestrated action requiring HOD approval",
+    requested_by_name: "ORION orchestration",
     incident_id: a.incident_id,
-    is_high_risk: a.is_high_risk ?? false,
+    is_high_risk: a.incident?.severity === "critical" || a.incident?.severity === "high",
     created_at: a.created_at,
   }));
 

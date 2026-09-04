@@ -15,7 +15,7 @@ export interface MembershipRecord {
   userId: string;
   institutionId: string;
   status: "active" | "inactive";
-  roles: Array<{ role: Role; departmentId: string | null; startsAt: Date; endsAt: Date | null; revokedAt: Date | null }>;
+  roles: Array<{ role: Role; departmentId: string | null; sectionId?: string | null; startsAt: Date; endsAt: Date | null; revokedAt: Date | null }>;
 }
 
 export interface AuthorizationStore {
@@ -50,7 +50,7 @@ export async function requireFreshContext(
     ...claimed,
     roles,
     departmentIds: [...new Set(grants.flatMap((grant) => grant.departmentId ? [grant.departmentId] : []))],
-    sectionIds: [],
+    sectionIds: [...new Set(grants.flatMap((grant) => grant.sectionId ? [grant.sectionId] : []))],
   };
 }
 

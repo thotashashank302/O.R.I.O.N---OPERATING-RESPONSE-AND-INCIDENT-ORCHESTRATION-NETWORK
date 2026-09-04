@@ -1,13 +1,23 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { getUserContexts } from "@/server/identity/roles";
+import { createSupabaseSessionClient } from "@/server/auth/supabase-session";
 
-export async function GET(req: NextRequest) {
+export async function GET() {
   const requestId = crypto.randomUUID();
   try {
-    const { searchParams } = new URL(req.url);
-    const userId = searchParams.get("user_id") || "demo-user-id";
+    const session = await createSupabaseSessionClient();
+    const { data, error } = await session.auth.getUser();
+    if (error || !data.user?.email) {
+      return NextResponse.json(
+        { error: { code: "UNAUTHENTICATED", message: "Login required" }, requestId },
+        { status: 401 }
+      );
+    }
 
-    const contexts = await getUserContexts(userId);
+    const displayName = typeof data.user.user_metadata?.display_name === "string"
+      ? data.user.user_metadata.display_name
+      : "";
+    const contexts = await getUserContexts(data.user.id, data.user.email, displayName);
     if (!contexts) {
       return NextResponse.json(
         { error: { code: "NOT_FOUND", message: "User contexts not found" }, requestId },

@@ -1,15 +1,11 @@
 import { NextRequest } from 'next/server';
 import { jsonSuccess, jsonError } from '@/server/http-envelope';
 import { authorizePrivateUpload } from '@/server/reporting/upload-service';
+import { requireRequestContext } from '@/server/auth/request-context';
 
 export async function POST(req: NextRequest) {
   try {
-    const institutionId = req.headers.get('x-institution-id');
-    const memberId = req.headers.get('x-member-id');
-
-    if (!institutionId || !memberId) {
-      return jsonError('UNAUTHENTICATED', 'Missing institution or member context', 401);
-    }
+    const context = await requireRequestContext(req);
 
     const body = await req.json();
 
@@ -18,8 +14,8 @@ export async function POST(req: NextRequest) {
     }
 
     const ticket = await authorizePrivateUpload({
-      institutionId,
-      memberId,
+      institutionId: context.institutionId,
+      memberId: context.membershipId,
       fileName: body.fileName,
       fileSize: Number(body.fileSize),
       mimeType: body.mimeType,

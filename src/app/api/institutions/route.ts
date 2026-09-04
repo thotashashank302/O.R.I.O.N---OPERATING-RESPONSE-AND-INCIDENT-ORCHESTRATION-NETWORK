@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createInstitution, listApprovedInstitutions } from "@/server/identity/institutions";
+import { createSupabaseSessionClient } from "@/server/auth/supabase-session";
 
 export async function GET() {
   const requestId = crypto.randomUUID();
@@ -17,8 +18,16 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   const requestId = crypto.randomUUID();
   try {
+    const session = await createSupabaseSessionClient();
+    const { data, error } = await session.auth.getUser();
+    if (error || !data.user) {
+      return NextResponse.json({ error: { code: "UNAUTHENTICATED", message: "Login required" }, requestId }, { status: 401 });
+    }
     const body = await req.json();
-    const result = await createInstitution(body);
+    const displayName = typeof data.user.user_metadata?.display_name === "string"
+      ? data.user.user_metadata.display_name
+      : data.user.email ?? "Institution principal";
+    const result = await createInstitution(body, { userId: data.user.id, displayName });
 
     if (!result.success) {
       return NextResponse.json(

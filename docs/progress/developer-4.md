@@ -16,7 +16,7 @@
 | B3 | HOD override | ✅ verified | `POST /api/incidents/[id]/override` |
 | C1 | Verification agent | ✅ verified | `src/server/agents/verification.ts` |
 | C2 | Recovery / unit tests | ✅ verified | `tests/unit/operations/verification.test.ts` |
-| C3 | Test handoff | 🔶 blocked | Awaiting D1 DB migration + Supabase credentials |
+| C3 | Test handoff | ✅ integrated | Included in the combined 98-test D1–D5 suite; live DB remains a release gate |
 
 ---
 
@@ -79,19 +79,17 @@
 
 | Blocker | Owner | Impact |
 |---------|-------|--------|
-| Supabase DB migrations (tables must exist) | D1 | All DB operations |
-| `institution_memberships`, `role_grants` tables | D1/D2 | Auth resolution in routes |
-| `FEATHERLESS_API_KEY` env var | Team | Verification agent live calls |
-| D3's upload service | D3 | `storage_key` in evidence |
-| D5's email confirmation POST calling our acknowledge | D5 | Shared acknowledge service ready |
+| Apply reviewed Supabase migrations | Team/D1 | Live DB operations and RLS acceptance |
+| Responsive Featherless model inference | Provider | Live Verification agent acceptance |
+| Controlled Resend inbox/webhook | Team/D5 | Email delivery acceptance |
 
 ---
 
 ## Handoff to D1
 
 - All assignment transition logic is in `src/server/operations/assignment-actions.ts`
-- Handover events are queued in `jobs` table with type `handover_requested`
-- Approval grants are queued in `jobs` table with type `approval_granted`
+- Handover and failed verification now enqueue the canonical `commander` replan job.
+- Approval decisions are persisted and audited directly; no unhandled `approval_granted` job remains.
 - Verification module is in `src/server/agents/verification.ts` using shared provider pattern
 
 ## Handoff to D5
