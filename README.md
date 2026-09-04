@@ -32,9 +32,9 @@ Implemented and locally verified:
 Not yet externally verified:
 
 - Authenticated two-user workflow acceptance. Four migrations are applied to the hosted ORION project, generated database types are checked in, all 34 public tables have RLS enabled, and rollback-only SQL assertions confirm unrelated users cannot read another institution. The optional hosted `pgtap` extension is not installed.
-- A completed Featherless model inference. The configured key and subscription are authenticated through `GET /v1/plan`, but the selected 70B model smoke request timed out.
-- Real Resend receipt/webhooks. The configured key authenticates as a send-only restricted key, which is appropriate for delivery but cannot list domains; no email was sent during integration.
-- Hosted Cron, deployed E2E, public URL, video and submission receipt.
+- A complete controlled multi-role incident journey using live Featherless decisions. A direct completion from the configured 70B model succeeded on 5 September 2026, while the end-to-end agent loop still needs controlled authenticated users.
+- Confirmed Resend delivery/webhooks. One approved idempotent allowlist test was accepted by Resend on 5 September 2026; recipient receipt or the signed delivery webhook remains the delivery proof.
+- Hosted Cron/lease-recovery evidence, redesigned-preview E2E, video and submission receipt.
 - P1 transport/club/feedback surfaces and P2 3D intro/map/analytics.
 
 ## Autonomous incident loop
@@ -113,7 +113,7 @@ npm run build
 npm run test:e2e
 ```
 
-Current integration result: typecheck and lint passed; 98 unit tests across 12 files passed; the production Webpack build generated 34 routes; and three Chromium E2E tests passed. Four migrations are applied to the hosted Supabase project, generated types compile, security advisors report no warnings/errors, and direct SQL RLS assertions pass. The default Turbopack build cannot bind its internal CSS helper port on this host, while the supported Webpack build succeeds. Authenticated multi-user acceptance, live email delivery and deployed recovery tests still require controlled accounts/inboxes. See `docs/integration-status.md` and the developer progress files for exact evidence and blockers.
+Current integration result: typecheck and lint passed; 101 unit tests across 13 files passed; the production Webpack build generated 34 routes; and five Chromium E2E tests passed. Four migrations are applied to the hosted Supabase project, generated types compile, security advisors report no warnings/errors, and direct SQL RLS assertions pass. A live Featherless completion succeeded and Resend accepted one approved allowlist test. Authenticated multi-user acceptance, confirmed email delivery and deployed recovery tests still require the controlled identities/inbox. See `docs/integration-status.md`, `docs/HANDOFF_AUDIT.md`, and the developer progress files for exact evidence and blockers.
 
 ## Controlled demo
 
@@ -121,7 +121,7 @@ Use an isolated demo college and distinct team-controlled Principal, HOD, CR, St
 
 ## Deployment, video and screenshots
 
-- Deployed application: **not deployed from this checkout**.
+- Existing branch preview: `https://orion-incident-orchestration-git-shashank-1-shadow-monarch1.vercel.app` (currently the pre-redesign `d36224a` build until these changes are committed and deployed).
 - Three-minute video: **not supplied**.
 - Product screenshots: **not supplied**.
 
