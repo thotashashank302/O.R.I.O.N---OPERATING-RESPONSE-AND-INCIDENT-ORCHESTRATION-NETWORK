@@ -104,7 +104,7 @@ export async function POST(
     const { data: approvalReq, error: approvalError } = await supabase
       .from("approvals")
       .select(
-        "id, institution_id, action_payload_hash, plan_version, approver_membership_id, decision, incident_id"
+        "id, institution_id, action_payload_hash, plan_version, approver_membership_id, decision, incident_id, action_payload, task_id"
       )
       .eq("id", approvalRequestId)
       .eq("institution_id", membership.institution_id)
@@ -114,6 +114,30 @@ export async function POST(
       return NextResponse.json(
         { error: { code: "NOT_FOUND", message: "Approval request not found" }, requestId },
         { status: 404 }
+      );
+    }
+
+    // Check self-approval conflict: approver cannot approve actions requested for them or incidents they reported
+    const candidateStaffId = (approvalReq.action_payload as { candidateStaffId?: string } | null)?.candidateStaffId;
+    const { data: incident } = await supabase
+      .from("incidents")
+      .select("reporter_membership_id")
+      .eq("id", approvalReq.incident_id)
+      .single();
+
+    if (
+      (candidateStaffId && candidateStaffId === membership.id) ||
+      (incident && incident.reporter_membership_id === membership.id)
+    ) {
+      return NextResponse.json(
+        {
+          error: {
+            code: "SELF_APPROVAL_CONFLICT",
+            message: "You cannot approve your own action or an incident you reported",
+          },
+          requestId,
+        },
+        { status: 409 }
       );
     }
 

@@ -40,13 +40,17 @@ export async function POST(req: NextRequest) {
     // Keep the invocation alive after sending the response. Durable jobs remain
     // recoverable by the scheduler if the process terminates.
     if (result.job) {
-      after(async () => {
-        try {
-          await createProductionWorker().tick(`report-${result.incident.id}`);
-        } catch (err) {
-          console.error('[ORION] Report worker failed; scheduler will retry', err);
-        }
-      });
+      try {
+        after(async () => {
+          try {
+            await createProductionWorker().tick(`report-${result.incident.id}`);
+          } catch (err) {
+            console.error('[ORION] Report worker failed; scheduler will retry', err);
+          }
+        });
+      } catch (err) {
+        console.warn('[ORION] after() call failed; scheduler will retry', err);
+      }
     }
 
     return jsonSuccess(

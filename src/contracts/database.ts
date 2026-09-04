@@ -76,6 +76,7 @@ export type Database = {
       }
       approvals: {
         Row: {
+          action_payload: Json | null
           action_payload_hash: string
           approver_membership_id: string | null
           created_at: string
@@ -86,8 +87,10 @@ export type Database = {
           institution_id: string
           plan_version: number
           reason: string | null
+          task_id: string | null
         }
         Insert: {
+          action_payload?: Json | null
           action_payload_hash: string
           approver_membership_id?: string | null
           created_at?: string
@@ -98,8 +101,10 @@ export type Database = {
           institution_id: string
           plan_version: number
           reason?: string | null
+          task_id?: string | null
         }
         Update: {
+          action_payload?: Json | null
           action_payload_hash?: string
           approver_membership_id?: string | null
           created_at?: string
@@ -110,6 +115,7 @@ export type Database = {
           institution_id?: string
           plan_version?: number
           reason?: string | null
+          task_id?: string | null
         }
         Relationships: [
           {

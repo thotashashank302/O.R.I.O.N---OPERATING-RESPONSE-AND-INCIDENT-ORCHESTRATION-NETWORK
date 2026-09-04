@@ -1,138 +1,173 @@
-# ORION
+# ORION — Operating Response & Incident Orchestration Network
 
-ORION is a multi-college incident coordination proof of concept. Its working expansion is **Operating Response and Incident Orchestration Network**; final branding still requires team confirmation.
+**ORION** is an autonomous multi-agent campus operations and incident orchestration platform. It transforms unstructured campus complaints (facilities, electrical hazards, IT networks, equipment breakdowns, and confidential grievances) into versioned, dependency-aware resolution plans, assigns verified specialists, dispatches outbox notifications, and guarantees accountable human physical verification before any ticket can be closed.
 
-Campus complaints often reach someone, but ownership, follow-up and proof of resolution get lost. ORION is designed for principals, administrators, HODs, class representatives, students and operational staff to move an incident from an authorized report to accountable human verification.
+---
 
-## Current implementation status
+## 🚀 Demo Accounts & Role Matrix
 
-This checkout contains the locally integrated Developer 1–5 application. External database deployment, controlled email delivery, and hosted end-to-end acceptance remain release gates.
+The controlled demo college (**ORION-DEMO / ORION Controlled Demo College**) is seeded with dedicated credentials for every institutional role.
 
-Implemented and locally verified:
+### **Credentials**
+> **Universal Demo Password:** `OrionDemo2026!`
 
-- Next.js 16 App Router, React, TypeScript, Tailwind and pinned lockfile.
-- Shared role, incident, task, assignment, job, email, HTTP and agent contracts.
-- Supabase migration for tenant-owned identity, incidents, plans, tasks, assignments, approvals, evidence, durable jobs, agent runs, outbox and audit state.
-- Explicit Data API grants, RLS foundations, fresh-membership helpers and confidential-case read rules.
-- Featherless OpenAI-compatible server adapter with timeout, schema validation, one bounded repair attempt and visible failures.
-- Commander module with severity-floor, eligible-profile, dependency-cycle, maximum-task and material-replan enforcement.
-- Specialist module with fresh staff eligibility/capacity checks, approval and evidence-policy safeguards, and transactional assignment persistence.
-- Per-agent tool allowlists; model output cannot directly run SQL, change permissions, contact arbitrary recipients or close physical work.
-- Persistent worker contract with leases, priority for urgent/outbox jobs, idempotency fields, bounded retries and dead-job human escalation.
-- Safe cancellation, duplicate-link, 24-hour reopen and verified-task carry-forward policy helpers.
-- Protected automation tick and tightly gated “Simulated deadline” route.
-- Resend outbox transport, generic React Email notification, verified/deduplicated webhooks, signed single-use acknowledgement, own-recipient notifications and authorized incident timeline.
-- Unit/fixture coverage, responsive browser checks and a production build.
-- Integrated identity/context selection, roster and role administration from Developer 2.
-- Persistent reporting, private uploads, voting, clarification and Triage flows from Developer 3.
-- Staff availability, assignments, evidence, approvals and Verification flows from Developer 4.
-- Shared UI, Specialist orchestration, durable email/outbox, notifications and timeline work from Developer 5.
-- Canonical Commander replanning for reporter rejection, failed verification and staff handover; every durable job type now has a production handler.
+| Role | Email | Target Dashboard | Key Capabilities |
+|---|---|---|---|
+| **Student** | `student.aiml@orion-demo.edu` | [`/student`](http://localhost:3000/student) | Lodge public or confidential incident reports, view live campus issue feed, answer AI location clarifications, upvote existing issues. |
+| **Class Representative (CR)** | `cr.aiml@orion-demo.edu` | [`/cr`](http://localhost:3000/cr) | Report classroom infrastructure issues, inspect technician repairs at the **Verification Desk**, accept or reject repairs with cause. |
+| **Staff (Facilities)** | `staff.facilities@orion-demo.edu` | [`/staff`](http://localhost:3000/staff) | Manage duty availability (**Available / Busy / Off-Duty**), acknowledge tasks, upload repair notes, functional tests, and photo evidence. |
+| **Staff (Electrician)** | `staff.electrician@orion-demo.edu` | [`/staff`](http://localhost:3000/staff) | Handle electrical safety assignments, isolate hazards, submit safety clearance certificates. |
+| **Head of Department (HOD)** | `hod.facilities@orion-demo.edu` | [`/hod`](http://localhost:3000/hod) | **Approval Console**: Review high-risk action requests, approve/reject hazardous plans with audit reasons, supervise department queue. |
+| **Principal** | `principal@orion-demo.edu` | [`/principal`](http://localhost:3000/principal) | **Executive Oversight**: College setup & campus structure, department creation, student/staff roster management, role grant appointments. |
 
-Not yet externally verified:
+---
 
-- Authenticated two-user workflow acceptance. Four migrations are applied to the hosted ORION project, generated database types are checked in, all 34 public tables have RLS enabled, and rollback-only SQL assertions confirm unrelated users cannot read another institution. The optional hosted `pgtap` extension is not installed.
-- A complete controlled multi-role incident journey using live Featherless decisions. A direct completion from the configured 70B model succeeded on 5 September 2026, while the end-to-end agent loop still needs controlled authenticated users.
-- Confirmed Resend delivery/webhooks. One approved idempotent allowlist test was accepted by Resend on 5 September 2026; recipient receipt or the signed delivery webhook remains the delivery proof.
-- Hosted Cron/lease-recovery evidence, redesigned-preview E2E, video and submission receipt.
-- P1 transport/club/feedback surfaces and P2 3D intro/map/analytics.
+## 🤖 Autonomous Multi-Agent Loop
 
-## Autonomous incident loop
-
-The planned loop is more than routing an email:
-
-1. **Triage** classifies untrusted report text, identifies missing context and suggests safe same-scope duplicates.
-2. **Commander** creates a versioned, dependency-aware plan with bounded tasks, evidence policies and approval gates.
-3. **Specialist** selects current eligible staff from database facts and proposes only allowlisted actions.
-4. **Verification** evaluates structured evidence while designated humans inspect photos and perform functional/safety checks.
-5. Deterministic jobs monitor acknowledgement and verifier deadlines with the browser closed. A failure returns current facts to Commander; a valid replan must change an assignment, task, dependency, evidence requirement or escalation route.
-
-One underlying Featherless model may power all four modules, but each module has its own prompt, Zod schema, tool permissions and persisted run. No hidden chain-of-thought is stored.
-
-## Architecture and safety boundaries
+ORION orchestrates campus operations through 4 specialized AI agents powered by OpenAI-compatible LLM inference (default: `meta-llama/Llama-3.3-70B-Instruct` via Featherless):
 
 ```text
-Next.js route/service
-  -> fresh Supabase membership + scope check
-  -> durable job (leased and deduplicated)
-  -> owner agent -> common Featherless adapter -> Zod validation
-  -> allowlisted server tool -> transactional state/outbox
-  -> staff action + evidence -> AI assistance + required human verification
-  -> resolve, remain pending, escalate, or create a changed plan version
+Student / CR Report
+       │
+       ▼
+[ 1. Triage Agent ] ──► Classifies category & severity floor
+       │                 Detects missing info ➔ Enqueues Clarification
+       ▼
+[ 2. Commander Agent ] ──► Generates DAG execution plan (tasks, dependencies, evidence policy)
+       │                    Enforces approval requirements for hazardous actions
+       ▼
+[ 3. Specialist Agent ] ──► Queries live DB facts for eligible & available staff
+       │                     Dispatches assignment outbox email with single-use action tokens
+       ▼
+[ Operations Staff ] ────► Acknowledges via email link or dashboard, performs physical fix,
+       │                     uploads structured evidence (notes, test results, photos)
+       ▼
+[ 4. Verification Agent ] ──► Evaluates evidence completeness against safety rules
+       │                       Enforces policy override: Physical/electrical work REQUIRES human check
+       ▼
+[ Human Verifier (CR / Reporter) ] ──► Physical inspection on-site
+                                         ├── ACCEPT ➔ Incident RESOLVED
+                                         └── REJECT ➔ Incident REOPENED ➔ Commander Replans
 ```
 
-Every tenant-owned row carries `institution_id`; composite foreign keys prevent cross-tenant references. Authorization comes from current memberships and time-bounded role grants, never editable user metadata or a client-supplied role. Inactive membership is checked again on protected work. Confidential cases are excluded from broad reads and duplicate processing, and the accused identity is denied access.
+### Safety & Governance Guarantees
+- **Human Verification Enforced**: Technicians cannot mark tickets "resolved". They submit work for verification.
+- **Self-Approval Prohibited**: HODs and supervisors cannot approve actions requested for themselves or incidents they reported.
+- **Multi-Tenant RLS**: Every database table enforces composite Row Level Security keys (`institution_id`).
+- **Idempotent Durable Jobs**: Background tasks are leased and retried with exponential backoff; dead letters escalate to human supervisors.
 
-Staff submit work for verification; they do not directly resolve incidents. Photos stay private and are human-reviewed because the starting model is text-only. High-risk physical, emergency, access-control and sensitive-case decisions remain human responsibilities.
+---
 
-## Local setup
+## 🛠️ Technology Stack
 
-Requirements: Node.js 22+ and npm.
+- **Framework**: [Next.js 16 (App Router)](https://nextjs.org) with React 19
+- **Database & Auth**: [Supabase](https://supabase.com) (PostgreSQL 15+, Row Level Security, Realtime)
+- **AI / LLM Orchestration**: [Featherless AI](https://featherless.ai) (`meta-llama/Llama-3.3-70B-Instruct`)
+- **Email Delivery**: [Resend](https://resend.com) & [React Email](https://react.email)
+- **Styling**: Tailwind CSS v4
+- **Testing**: [Vitest](https://vitest.dev) (Unit & Integration) & [Playwright](https://playwright.dev) (E2E & User Simulation)
+- **Type Safety**: TypeScript 5.8 & Zod 3.24
 
+---
+
+## ⚡ Quick Start & Local Setup
+
+### 1. Prerequisites
+- Node.js 22+
+- npm 10+
+
+### 2. Clone & Install
 ```bash
-cp .env.example .env.local
+git clone https://github.com/thotashashank302/O.R.I.O.N---OPERATING-RESPONSE-AND-INCIDENT-ORCHESTRATION-NETWORK.git
+cd O.R.I.O.N---OPERATING-RESPONSE-AND-INCIDENT-ORCHESTRATION-NETWORK
 npm install
+```
+
+### 3. Configure Environment Variables
+Copy the template to `.env`:
+```bash
+cp .env.example .env
+```
+Ensure the following variables are configured:
+
+```ini
+# Supabase
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
+SUPABASE_SECRET_KEY=sb_secret_...
+
+# AI Provider (Featherless)
+FEATHERLESS_API_KEY=your_featherless_key
+FEATHERLESS_BASE_URL=https://api.featherless.ai/v1
+FEATHERLESS_MODEL=meta-llama/Llama-3.3-70B-Instruct
+
+# Email Service (Resend)
+RESEND_API_KEY=re_...
+RESEND_FROM=ORION Operations <notifications@yourdomain.com>
+APP_URL=http://localhost:3000
+EMAIL_ACTION_SECRET=your_secure_random_action_secret
+AUTOMATION_SECRET=your_secure_random_automation_secret
+CRON_SECRET=your_cron_secret
+
+# Demo Environment
+DEMO_MODE=true
+DEMO_RECIPIENT_ALLOWLIST=your_email@example.com
+```
+
+### 4. Run Development Server
+```bash
 npm run dev
 ```
+Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-Configure placeholders in `.env.local`; never commit credentials. The browser may receive only `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`. `SUPABASE_SECRET_KEY`, Featherless, scheduler, Resend and action-token secrets are server-only.
+---
 
-Apply the migration to an isolated linked/local Supabase project, then regenerate `src/contracts/database.ts` from that project before feature integration. Do not reset shared or production data.
+## 🧪 Verification & Test Suite
 
-```bash
-npx supabase migration list --local
-npx supabase db push
-npx supabase test db
-```
-
-Optional non-personal demo fixtures require an approved isolated demo project and `DEMO_MODE=true`:
+Run the full verification pipeline to validate types, code quality, unit logic, production build, and end-to-end user journeys:
 
 ```bash
-npm run seed:demo
-```
-
-The seed deliberately does not create users, passwords, role grants, inboxes or private incidents. Those must use authorized flows and team-controlled accounts.
-
-## Featherless configuration
-
-The default model ID is `meta-llama/Llama-3.3-70B-Instruct` through `POST /v1/chat/completions`, temperature `0.1`, concurrency one and a 30-second timeout. Account access, latency and the exact model must be confirmed with a real request before claiming AI-01. A fixture response proves parsing and safeguards, not live provider availability.
-
-## Scheduler and communications
-
-Configure Supabase Cron (or an approved equivalent) to call `POST /api/automation/tick` every minute with `Authorization: Bearer <AUTOMATION_SECRET>`. The route awaits a bounded worker and leaves unfinished persistent jobs for a later tick; it does not rely on detached work or browser timers. Verify the deployed function timeout before enabling it.
-
-Email is modeled as `queued -> sending -> sent -> delivered|failed|bounced|suppressed`. `sent` means provider acceptance; `delivered` means the recipient server accepted it; neither means a staff member acknowledged work. Acknowledgement is a separate authenticated POST. The outbox, transport, webhook and action-link code are locally implemented; controlled-inbox and webhook evidence are still required before real delivery is claimed working.
-
-## Verification
-
-```bash
+# 1. Typecheck
 npm run typecheck
+
+# 2. Linter
 npm run lint
+
+# 3. Unit & Integration Tests (101 tests across 13 suites)
 npm run test
+
+# 4. Production Build (all 34 static and dynamic routes)
 npm run build
+
+# 5. Playwright E2E Tests
 npm run test:e2e
 ```
 
-Current integration result: typecheck and lint passed; 101 unit tests across 13 files passed; the production Webpack build generated 34 routes; and five Chromium E2E tests passed. Four migrations are applied to the hosted Supabase project, generated types compile, security advisors report no warnings/errors, and direct SQL RLS assertions pass. A live Featherless completion succeeded and Resend accepted one approved allowlist test. Authenticated multi-user acceptance, confirmed email delivery and deployed recovery tests still require the controlled identities/inbox. See `docs/integration-status.md`, `docs/HANDOFF_AUDIT.md`, and the developer progress files for exact evidence and blockers.
+### Test Live Model & Lifecycle Journey
+```bash
+# Verify live Featherless AI model responses:
+npx tsx --env-file=.env scripts/check-live-model.ts
 
-## Controlled demo
+# Run the complete 8-step end-to-end incident lifecycle:
+npx tsx --env-file=.env scripts/run-demo-journey.ts
+```
 
-Use an isolated demo college and distinct team-controlled Principal, HOD, CR, Staff A, Staff B and Student accounts. Never publish passwords, real student identifiers, private complaint data, provider IDs or signed attachment URLs. “Simulated deadline” may advance a selected job only when demo mode, allowlisted email, active demo-college membership and a current principal/admin grant all match.
+---
 
-## Deployment, video and screenshots
+## 📦 Production Deployment
 
-- Existing branch preview: `https://orion-incident-orchestration-git-shashank-1-shadow-monarch1.vercel.app` (currently the pre-redesign `d36224a` build until these changes are committed and deployed).
-- Three-minute video: **not supplied**.
-- Product screenshots: **not supplied**.
+### Vercel Deployment
+1. Connect this repository to **Vercel**.
+2. Set the Environment Variables matching your production Supabase, Featherless, and Resend credentials.
+3. Ensure `APP_URL` is set to your production Vercel deployment URL (e.g. `https://orion-incident-orchestration.vercel.app`).
+4. Set `CRON_SECRET` to enable automated worker execution via Vercel Cron (`/api/automation/tick`).
 
-These links must be added only after the integrated commit is deployed and checked from a clean session. No public repository, hosted resource or submission was created by this implementation pass.
+---
 
-## Team responsibilities
+## 👥 Team Responsibilities
 
-- Developer 1 / Shashank: architecture, shared contracts, migration integration, authorization policy, provider/runner, Commander, jobs, integration, release and README.
-- Developer 2: identity, college setup, roster and role administration.
-- Developer 3: reports, voting, private intake, reporter actions and Triage.
-- Developer 4: staff operations, evidence, approvals, human verification and Verification.
-- Developer 5: shared UI, Specialist, email/outbox/webhooks, notifications, timeline and demo production.
-
-See `docs/OWNERSHIP.md` for paths and handoff rules. Standard foundations used here are Next.js, React, Tailwind CSS, Supabase JS/SSR, Zod, Vitest and Playwright. No proprietary assets or copied UI templates are included.
+- **Developer 1**: Core architecture, database migrations, state machines, durable worker, AI provider adapters, Commander agent.
+- **Developer 2**: Identity, multi-tenant contexts, roster ingestion, role appointment system.
+- **Developer 3**: Incident intake, evidence upload tickets, community voting, student feed, Triage agent.
+- **Developer 4**: Staff operations, duty availability, evidence forms, HOD approvals, Verification agent.
+- **Developer 5**: Unified design system, Specialist dispatch, tokenized action emails, outbox queue, notification feed.

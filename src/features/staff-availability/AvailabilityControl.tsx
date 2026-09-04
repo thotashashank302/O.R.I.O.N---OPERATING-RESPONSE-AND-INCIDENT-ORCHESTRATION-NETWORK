@@ -206,7 +206,8 @@ export function AvailabilityControl({
               <button
                 key={state}
                 onClick={() => !isActive && handleChange(state)}
-                disabled={isPending || isActive}
+                disabled={isPending}
+                aria-pressed={isActive}
                 className={`
                   relative rounded-xl border px-3 py-4 text-left transition-all duration-200
                   ${isActive
