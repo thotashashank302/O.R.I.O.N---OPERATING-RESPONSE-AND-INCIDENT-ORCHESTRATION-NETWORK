@@ -13,6 +13,18 @@ export default function AdminDashboardPage() {
   const [activeTab, setActiveTab] = useState<"members" | "setup" | "cr_seats" | "handlers">("members");
   const [selectedMemberForRole, setSelectedMemberForRole] = useState<MemberItem | null>(null);
 
+  React.useEffect(() => {
+    const handleHash = () => {
+      const hash = window.location.hash.replace("#", "");
+      if (hash === "members" || hash === "setup" || hash === "cr_seats" || hash === "handlers") {
+        setActiveTab(hash);
+      }
+    };
+    handleHash();
+    window.addEventListener("hashchange", handleHash);
+    return () => window.removeEventListener("hashchange", handleHash);
+  }, []);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#0B132B] via-[#070B14] to-[#040810] text-slate-100 antialiased selection:bg-cyan-500 selection:text-black">
       {/* Background Constellation Wave Network Overlay */}

@@ -1,40 +1,40 @@
 "use client";
 
 import React, { useState } from "react";
-import Link from "next/link";
-import { ContextSwitcher } from "@/features/identity/ContextSwitcher";
 import { MembershipList, MemberItem } from "@/features/identity/MembershipList";
 import { RoleGrantModal } from "@/features/role-management/RoleGrantModal";
-import { SignOutButton } from "@/features/auth/SignOutButton";
+import { CollegeSetupForm } from "@/features/institutions/CollegeSetupForm";
 
 export default function PrincipalDashboardPage() {
   const [selectedMemberForRole, setSelectedMemberForRole] = useState<MemberItem | null>(null);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#0B132B] via-[#070B14] to-[#040810] text-slate-100 antialiased selection:bg-cyan-500 selection:text-black">
-      {/* Top Header */}
-      <header className="border-b border-slate-800/80 bg-slate-900/60 backdrop-blur-xl px-6 py-3.5 flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Link href="/" className="flex items-center gap-2.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 shadow-[0_0_10px_#22d3ee] animate-pulse" />
-            <span className="font-mono text-sm tracking-widest text-white uppercase font-bold">
-              ORION
-            </span>
-            <span className="text-xs font-mono text-cyan-400 uppercase border-l border-slate-700 pl-2.5">
-              PRINCIPAL EXECUTIVE CONSOLE
-            </span>
-          </Link>
-        </div>
-
-        <div className="flex items-center gap-4">
-          <ContextSwitcher />
-          <SignOutButton />
-        </div>
-      </header>
-
       <main className="max-w-7xl mx-auto p-6 md:p-8 space-y-8">
-        {/* Principal Bootstrap Card */}
-        <div className="rounded-2xl border border-cyan-800/60 bg-gradient-to-r from-cyan-950/40 to-slate-900/60 backdrop-blur-xl p-6 shadow-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+        {/* Navigation bar */}
+        <div className="flex items-center gap-2 border-b border-slate-800 pb-3">
+          <a
+            href="/principal"
+            className="px-3.5 py-1.5 rounded-lg text-xs font-medium bg-slate-800 text-slate-200 hover:bg-slate-700 transition"
+          >
+            Governance
+          </a>
+          <a
+            href="/principal#members"
+            className="px-3.5 py-1.5 rounded-lg text-xs font-medium bg-slate-900 text-slate-400 hover:bg-slate-800 hover:text-slate-200 transition"
+          >
+            People &amp; Roles
+          </a>
+          <a
+            href="/principal#structure"
+            className="px-3.5 py-1.5 rounded-lg text-xs font-medium bg-slate-900 text-slate-400 hover:bg-slate-800 hover:text-slate-200 transition"
+          >
+            Campus Structure &amp; Locations
+          </a>
+        </div>
+
+        {/* Principal Bootstrap Card (Governance) */}
+        <div id="governance" className="scroll-mt-6 rounded-2xl border border-cyan-800/60 bg-gradient-to-r from-cyan-950/40 to-slate-900/60 backdrop-blur-xl p-6 shadow-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
           <div className="space-y-1">
             <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 text-[10px] font-mono font-semibold uppercase tracking-wider">
               PRINCIPAL GOVERNANCE
@@ -49,9 +49,24 @@ export default function PrincipalDashboardPage() {
         </div>
 
         {/* Executive Authority & Roles */}
-        <MembershipList
-          onOpenRoleModal={(member) => setSelectedMemberForRole(member)}
-        />
+        <div id="members" className="scroll-mt-6 space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-bold text-white">Institutional Roster &amp; Role Grants</h3>
+            <span className="text-xs text-slate-400">Manage HOD, staff, and CR authority</span>
+          </div>
+          <MembershipList
+            onOpenRoleModal={(member) => setSelectedMemberForRole(member)}
+          />
+        </div>
+
+        {/* Campus Structure & Configuration */}
+        <div id="structure" className="scroll-mt-6 space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-bold text-white">Campus Structure &amp; Facilities Setup</h3>
+            <span className="text-xs text-slate-400">Departments, blocks, rooms &amp; roster</span>
+          </div>
+          <CollegeSetupForm />
+        </div>
       </main>
 
       {selectedMemberForRole && (

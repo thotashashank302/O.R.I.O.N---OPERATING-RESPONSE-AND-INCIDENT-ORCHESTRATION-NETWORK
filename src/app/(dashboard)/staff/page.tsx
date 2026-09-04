@@ -205,7 +205,7 @@ export default async function StaffPage() {
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         {/* Left column: availability + stats */}
-        <div className="space-y-4 lg:col-span-1">
+        <div id="availability" className="scroll-mt-6 space-y-4 lg:col-span-1">
           {/* Availability control */}
           {availabilityData ? (
             <AvailabilityControl
@@ -235,7 +235,7 @@ export default async function StaffPage() {
         </div>
 
         {/* Right column: assignments */}
-        <div className="lg:col-span-2">
+        <div id="work" className="scroll-mt-6 space-y-4 lg:col-span-2">
           {assignments.length === 0 ? (
             <div className="flex h-48 items-center justify-center rounded-2xl border border-dashed border-slate-700 text-sm text-slate-600">
               No active assignments. Check back soon.

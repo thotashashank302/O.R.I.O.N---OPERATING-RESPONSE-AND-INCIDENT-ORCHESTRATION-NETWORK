@@ -75,8 +75,42 @@ export default function IncidentCard({ incident, institutionId, memberId }: Inci
       </div>
 
       {incident.clarificationRequest && (
-        <div className="p-2.5 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-800">
-          ⚠️ <strong>Action Needed:</strong> {incident.clarificationRequest.question}
+        <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-800 space-y-2">
+          <div className="flex items-start gap-1.5">
+            <span>⚠️</span>
+            <div>
+              <strong className="block text-amber-900 font-semibold">Location Clarification Requested:</strong>
+              <p className="mt-0.5 text-amber-800 leading-relaxed">{incident.clarificationRequest.question}</p>
+            </div>
+          </div>
+          <div>
+            <Link
+              href={`/incidents/${incident.id}`}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-amber-600 hover:bg-amber-700 text-white font-semibold text-xs transition shadow-sm"
+            >
+              <span>Answer Question &amp; Dispatch Staff →</span>
+            </Link>
+          </div>
+        </div>
+      )}
+
+      {incident.state === 'submitted_for_verification' && (
+        <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-xs text-emerald-800 space-y-2">
+          <div className="flex items-start gap-1.5">
+            <span>🔍</span>
+            <div>
+              <strong className="block text-emerald-900 font-semibold">Repaired by Staff — Verification Required:</strong>
+              <p className="mt-0.5 text-emerald-700">Technician has submitted repair evidence. Confirm physical resolution.</p>
+            </div>
+          </div>
+          <div>
+            <Link
+              href={`/incidents/${incident.id}`}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs transition shadow-sm"
+            >
+              <span>Test &amp; Confirm Fix →</span>
+            </Link>
+          </div>
         </div>
       )}
 

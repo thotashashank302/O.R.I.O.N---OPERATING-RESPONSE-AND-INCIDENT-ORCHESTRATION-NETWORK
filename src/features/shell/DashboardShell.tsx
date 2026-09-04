@@ -1,11 +1,29 @@
 "use client";
 
+import React, { useSyncExternalStore } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ContextSwitcher } from "@/features/identity/ContextSwitcher";
 import { SignOutButton } from "@/features/auth/SignOutButton";
 
 type NavItem = { label: string; href: string; icon: "overview" | "incident" | "people" | "work" | "evidence" | "settings" };
+
+function subscribeToHash(callback: () => void) {
+  window.addEventListener("hashchange", callback);
+  return () => window.removeEventListener("hashchange", callback);
+}
+
+function getHashSnapshot() {
+  return typeof window !== "undefined" ? window.location.hash : "";
+}
+
+function getHashServerSnapshot() {
+  return "";
+}
+
+export function useLocationHash() {
+  return useSyncExternalStore(subscribeToHash, getHashSnapshot, getHashServerSnapshot);
+}
 
 const ROLE_META = {
   principal: { label: "Principal", subtitle: "Institution governance" },
@@ -81,6 +99,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
   const role = pathRole(pathname);
   const meta = ROLE_META[role];
   const nav = ROLE_NAV[role];
+  const currentHash = useLocationHash();
 
   return (
     <div className="orion-dashboard">
@@ -98,9 +117,25 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
 
         <nav className="orion-nav" aria-label={`${meta.label} navigation`}>
           {nav.map((item) => {
-            const active = item.href === pathname;
+            const hasHash = item.href.includes("#");
+            const active = hasHash
+              ? `${pathname}${currentHash}` === item.href
+              : pathname === item.href && (!currentHash || currentHash === "#");
             return (
-              <Link key={item.label} href={item.href} className={active ? "is-active" : undefined}>
+              <Link
+                key={item.label}
+                href={item.href}
+                className={active ? "is-active" : undefined}
+                onClick={() => {
+                  if (hasHash) {
+                    const id = item.href.split("#")[1];
+                    const el = document.getElementById(id);
+                    if (el) {
+                      el.scrollIntoView({ behavior: "smooth", block: "start" });
+                    }
+                  }
+                }}
+              >
                 <NavIcon name={item.icon} />
                 <span>{item.label}</span>
               </Link>

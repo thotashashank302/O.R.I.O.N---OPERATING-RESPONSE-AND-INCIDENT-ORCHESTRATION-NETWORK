@@ -106,7 +106,7 @@ export default function StudentDashboardPage() {
       </div>
 
       {/* Main Feed */}
-      <div className="space-y-4">
+      <div id="incidents" className="scroll-mt-6 space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-bold text-gray-900">Campus Issue Tracker</h2>
           <button

@@ -83,33 +83,76 @@ export default function CRDashboardPage() {
         </button>
       </div>
 
-      {/* Pending CR Verifications Banner */}
-      {pendingVerificationIncidents.length > 0 && (
-        <div className="p-5 bg-emerald-50 border border-emerald-200 rounded-2xl space-y-3">
-          <div className="flex items-center gap-2 text-emerald-900 font-bold text-sm">
-            <span>⚡</span>
-            <span>
-              {pendingVerificationIncidents.length} Issue(s) Repaired by Staff — Awaiting CR Verification
-            </span>
-          </div>
-          <p className="text-xs text-emerald-700">
-            Per campus operational policy, technician submission alone does not resolve incidents. Please verify physical functionality in your classroom and accept or reject with reason.
-          </p>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
-            {pendingVerificationIncidents.map((inc) => (
-              <IncidentCard
-                key={inc.id}
-                incident={inc}
-                institutionId={activeContext.institution_id}
-                memberId={activeContext.membership_id}
-              />
-            ))}
-          </div>
+      {/* Section View Filters */}
+      <div className="flex items-center gap-2 border-b border-stone-200 pb-3">
+        <a
+          href="/cr"
+          className="px-3.5 py-1.5 rounded-lg text-xs font-medium bg-stone-200 text-stone-800 hover:bg-stone-300 transition"
+        >
+          Section Desk (All)
+        </a>
+        <a
+          href="/cr#incidents"
+          className="px-3.5 py-1.5 rounded-lg text-xs font-medium bg-stone-100 text-stone-700 hover:bg-stone-200 transition"
+        >
+          Issue Feed ({incidents.length})
+        </a>
+        <a
+          href="/cr#verification"
+          className="px-3.5 py-1.5 rounded-lg text-xs font-medium bg-emerald-50 text-emerald-800 border border-emerald-200 hover:bg-emerald-100 transition"
+        >
+          Verification Desk ({pendingVerificationIncidents.length})
+        </a>
+      </div>
+
+      {/* CR Verifications Section */}
+      <div id="verification" className="scroll-mt-6 space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="text-base font-bold text-gray-900 flex items-center gap-2">
+            <span>📋 Verification Desk</span>
+            {pendingVerificationIncidents.length > 0 && (
+              <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 animate-pulse">
+                {pendingVerificationIncidents.length} Pending
+              </span>
+            )}
+          </h2>
         </div>
-      )}
+
+        {pendingVerificationIncidents.length > 0 ? (
+          <div className="p-5 bg-emerald-50 border border-emerald-200 rounded-2xl space-y-3">
+            <div className="flex items-center gap-2 text-emerald-900 font-bold text-sm">
+              <span>⚡</span>
+              <span>
+                {pendingVerificationIncidents.length} Issue(s) Repaired by Staff — Awaiting CR Verification
+              </span>
+            </div>
+            <p className="text-xs text-emerald-700">
+              Per campus operational policy, technician submission alone does not resolve incidents. Please verify physical functionality in your classroom and accept or reject with reason.
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
+              {pendingVerificationIncidents.map((inc) => (
+                <IncidentCard
+                  key={inc.id}
+                  incident={inc}
+                  institutionId={activeContext.institution_id}
+                  memberId={activeContext.membership_id}
+                />
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div className="p-6 text-center rounded-2xl border border-dashed border-stone-300 bg-stone-50/70 space-y-2">
+            <span className="text-2xl">🔍</span>
+            <p className="text-xs font-semibold text-stone-700">No Repairs Awaiting CR Verification</p>
+            <p className="text-[11px] text-stone-500 max-w-md mx-auto">
+              When technicians complete assigned repairs and submit photographic or diagnostic evidence, they will appear here for you to verify physical classroom functionality before tickets can close.
+            </p>
+          </div>
+        )}
+      </div>
 
       {/* Routine issues stream */}
-      <div className="space-y-3">
+      <div id="incidents" className="scroll-mt-6 space-y-3">
         <h2 className="text-base font-bold text-gray-900">All Classroom & Department Issues</h2>
         {loading ? (
           <div className="text-center py-8 text-gray-400 text-sm">Loading department feed...</div>

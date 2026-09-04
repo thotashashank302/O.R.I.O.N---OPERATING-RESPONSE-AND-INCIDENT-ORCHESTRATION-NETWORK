@@ -195,7 +195,7 @@ export default async function HODPage() {
 
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
         {/* Pending Approvals */}
-        <section>
+        <section id="approvals" className="scroll-mt-6">
           <h2 className="mb-4 text-lg font-semibold text-white">
             Pending Approvals
           </h2>
@@ -222,7 +222,7 @@ export default async function HODPage() {
         </section>
 
         {/* Incident Queue */}
-        <section>
+        <section id="incidents" className="scroll-mt-6">
           <h2 className="mb-4 text-lg font-semibold text-white">
             Incident Queue
           </h2>
