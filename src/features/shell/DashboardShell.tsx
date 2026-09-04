@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ContextSwitcher } from "@/features/identity/ContextSwitcher";
 import { SignOutButton } from "@/features/auth/SignOutButton";
+import { ErrorBoundary } from "@/features/shell/ErrorBoundary";
 
 type NavItem = { label: string; href: string; icon: "overview" | "incident" | "people" | "work" | "evidence" | "settings" };
 
@@ -160,7 +161,9 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
             <SignOutButton />
           </div>
         </header>
-        <main className="orion-dashboard-content">{children}</main>
+        <main className="orion-dashboard-content">
+          <ErrorBoundary>{children}</ErrorBoundary>
+        </main>
       </div>
     </div>
   );
