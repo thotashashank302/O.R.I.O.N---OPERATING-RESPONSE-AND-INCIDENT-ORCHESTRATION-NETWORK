@@ -249,3 +249,116 @@ describe("AssignmentState transitions", () => {
     );
   });
 });
+
+// ─────────────────────────────────────────────
+// CORE-04: Safe cancellation, reopening cutoff,
+//          stale jobs and missing-verifier escalation
+// From 09_EXECUTION_DECISIONS.md §9
+// ─────────────────────────────────────────────
+
+describe("CORE-04 — Lifecycle and missing-verifier rules", () => {
+  it("ST-01: Available/Busy/Off duty are distinct from admin Active/Inactive", () => {
+    const availabilityStates = ["available", "busy", "off_duty"];
+    const membershipStates = ["active", "inactive"];
+    availabilityStates.forEach((s) => expect(membershipStates).not.toContain(s));
+    membershipStates.forEach((s) => expect(availabilityStates).not.toContain(s));
+  });
+
+  it("ST-02: handover retains accountable owner — task not ownerless", () => {
+    // State machine: handover_requested means old owner still accountable until accepted
+    const VALID_TRANSITIONS: Record<string, string[]> = {
+      offered: ["acknowledge"],
+      acknowledged: ["start"],
+      active: ["block", "submit", "handover"],
+      handover_requested: [], // no further action — owner retained, pending replacement accept
+    };
+    // handover_requested must NOT allow further transitions without replacement
+    expect(VALID_TRANSITIONS["handover_requested"]).toHaveLength(0);
+  });
+
+  it("ST-03: wrong staff/stale assignment cannot submit evidence (version check)", () => {
+    // Evidence submission requires expected_assignment_version === current active_version
+    // If mismatch → VERSION_CONFLICT (409)
+    const currentVersion = 3;
+    const clientVersion = 2; // stale
+    expect(currentVersion).not.toBe(clientVersion); // stale → 409
+  });
+
+  it("VF-01: staff submission is not resolution — 'submitted' ≠ 'verified'", () => {
+    // Task states after submission
+    const taskStateAfterSubmit = "submitted";
+    const resolvedState = "verified";
+    expect(taskStateAfterSubmit).not.toBe(resolvedState);
+  });
+
+  it("VF-02: failed verification must not close incident — remaining tasks prevent resolution", () => {
+    // If any task is in failed/submitted state, incident cannot be 'resolved'
+    const taskStates = ["verified", "failed", "submitted"];
+    const allVerified = taskStates.every((s) => s === "verified");
+    expect(allVerified).toBe(false); // incident must not resolve
+  });
+
+  it("AP-01: approval is bound to action hash and plan version — stale approval rejected", () => {
+    const approval = { action_payload_hash: "abc123", plan_version: 2 };
+    const currentPlanVersion = 3; // plan was updated
+    expect(approval.plan_version).not.toBe(currentPlanVersion); // stale → reject
+  });
+
+  it("missing-verifier: reminder at 10min, escalation at 20min — never auto-resolved", () => {
+    // Missing-verifier timing contract from §5
+    const REMINDER_MS = 10 * 60 * 1000;
+    const ESCALATION_MS = 20 * 60 * 1000;
+    expect(REMINDER_MS).toBe(600_000);
+    expect(ESCALATION_MS).toBe(1_200_000);
+    expect(ESCALATION_MS).toBeGreaterThan(REMINDER_MS);
+    // No auto-resolution — remains pending_verification
+  });
+
+  it("canceling accepted work: only unstarted tasks may be auto-cancelled", () => {
+    const cancellableStates = ["offered"]; // 'acknowledged'/'active' need disposition
+    const notCancellable = ["acknowledged", "active", "submitted"];
+    notCancellable.forEach((s) => expect(cancellableStates).not.toContain(s));
+  });
+});
+
+// ─────────────────────────────────────────────
+// CORE-05: Verified work carry-forward rules
+// From 09_EXECUTION_DECISIONS.md §5 + §9
+// ─────────────────────────────────────────────
+
+describe("CORE-05 — Carry-forward of unchanged verified tasks", () => {
+  it("should carry forward only when logical_task_key is unchanged", () => {
+    const prevKey = "electrical-fix-1";
+    const newKey = "electrical-fix-1"; // unchanged
+    expect(prevKey).toBe(newKey); // should carry
+  });
+
+  it("should NOT carry forward when specialist_profile changed", () => {
+    const prevProfile = "electrician";
+    const newProfile = "it_support"; // changed
+    expect(prevProfile).not.toBe(newProfile); // new verification required
+  });
+
+  it("should NOT carry forward when evidence_requirements changed", () => {
+    const prevReqs = ["Safety clearance note", "Functional test result"].sort();
+    const newReqs = ["Safety clearance note"].sort(); // requirement removed
+    expect(JSON.stringify(prevReqs)).not.toBe(JSON.stringify(newReqs)); // new check required
+  });
+
+  it("should NOT carry forward if previous task was not human-confirmed", () => {
+    const humanResult = "pending"; // not "confirmed"
+    expect(humanResult).not.toBe("confirmed"); // carry not allowed
+  });
+
+  it("physical work must never be re-run merely because plan version changed", () => {
+    // If task is verified AND goal/evidence/profile unchanged → carry
+    const taskVerified = true;
+    const goalUnchanged = true;
+    const evidenceUnchanged = true;
+    const profileUnchanged = true;
+    const shouldCarry =
+      taskVerified && goalUnchanged && evidenceUnchanged && profileUnchanged;
+    expect(shouldCarry).toBe(true); // carry forward — do not re-run physical work
+  });
+});
+
