@@ -6,6 +6,12 @@ test("renders the integration baseline without claiming a finished product", asy
   await expect(page.getByText(/Product UI remains intentionally minimal/)).toBeVisible();
 });
 
+test("redirects unauthenticated dashboard access to the real login page", async ({ page }) => {
+  await page.goto("/admin");
+  await expect(page).toHaveURL(/\/login$/);
+  await expect(page.getByRole("heading", { name: "Sign in to ORION" })).toBeVisible();
+});
+
 test("secure acknowledgement GET is non-mutating and handles missing links", async ({ page }) => {
   await page.goto("/email-actions/confirm");
   await expect(page.getByRole("heading", { name: "Acknowledge your assignment" })).toBeVisible();

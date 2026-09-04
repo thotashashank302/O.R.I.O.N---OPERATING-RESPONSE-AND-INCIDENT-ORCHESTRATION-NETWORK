@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ContextSwitcher } from "@/features/identity/ContextSwitcher";
 import { MembershipList, MemberItem } from "@/features/identity/MembershipList";
 import { RoleGrantModal } from "@/features/role-management/RoleGrantModal";
+import { SignOutButton } from "@/features/auth/SignOutButton";
 
 export default function PrincipalDashboardPage() {
   const [selectedMemberForRole, setSelectedMemberForRole] = useState<MemberItem | null>(null);
@@ -27,12 +28,7 @@ export default function PrincipalDashboardPage() {
 
         <div className="flex items-center gap-4">
           <ContextSwitcher />
-          <Link
-            href="/login"
-            className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-medium text-slate-300 transition-all border border-slate-700"
-          >
-            Sign Out
-          </Link>
+          <SignOutButton />
         </div>
       </header>
 

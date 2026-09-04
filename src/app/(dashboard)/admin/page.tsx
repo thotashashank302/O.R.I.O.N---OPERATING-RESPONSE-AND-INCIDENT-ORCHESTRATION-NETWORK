@@ -7,6 +7,7 @@ import { MembershipList, MemberItem } from "@/features/identity/MembershipList";
 import { RoleGrantModal } from "@/features/role-management/RoleGrantModal";
 import { CollegeSetupForm } from "@/features/institutions/CollegeSetupForm";
 import { CATEGORY_HANDLER_MAP } from "@/contracts/category-handlers";
+import { SignOutButton } from "@/features/auth/SignOutButton";
 
 export default function AdminDashboardPage() {
   const [activeTab, setActiveTab] = useState<"members" | "setup" | "cr_seats" | "handlers">("members");
@@ -34,12 +35,7 @@ export default function AdminDashboardPage() {
 
         <div className="flex items-center gap-4">
           <ContextSwitcher />
-          <Link
-            href="/login"
-            className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-medium text-slate-300 transition-all border border-slate-700"
-          >
-            Sign Out
-          </Link>
+          <SignOutButton />
         </div>
       </header>
 

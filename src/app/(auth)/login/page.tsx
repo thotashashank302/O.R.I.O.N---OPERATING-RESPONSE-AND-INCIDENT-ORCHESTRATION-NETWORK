@@ -3,6 +3,9 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { createSupabaseBrowserClient } from "@/features/auth/supabase-browser";
+import { fetchAuthenticatedContexts } from "@/features/auth/context";
+import { dashboardRouteForContexts } from "@/features/auth/dashboard-route";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -19,26 +22,26 @@ export default function LoginPage() {
     setError(null);
 
     try {
-      // Demo authentication simulation or Supabase auth
       if (!email || !password) {
         setError("Please enter both email and password.");
-        setLoading(false);
         return;
       }
 
-      // Demo role-based redirect
-      const lowerEmail = email.toLowerCase();
-      if (lowerEmail.includes("principal")) {
-        router.push("/principal");
-      } else if (lowerEmail.includes("admin")) {
-        router.push("/admin");
-      } else if (lowerEmail.includes("hod")) {
-        router.push("/hod");
-      } else if (lowerEmail.includes("staff")) {
-        router.push("/staff");
-      } else {
-        router.push("/admin");
+      const supabase = createSupabaseBrowserClient();
+      const { error: authError } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password,
+      });
+      if (authError) throw new Error("Invalid email or password.");
+
+      const contexts = await fetchAuthenticatedContexts();
+      const destination = dashboardRouteForContexts(contexts);
+      if (!destination) {
+        await supabase.auth.signOut();
+        throw new Error("Your account has no active ORION membership. Claim or request campus access first.");
       }
+      router.replace(destination);
+      router.refresh();
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to sign in. Check your credentials.");
     } finally {
