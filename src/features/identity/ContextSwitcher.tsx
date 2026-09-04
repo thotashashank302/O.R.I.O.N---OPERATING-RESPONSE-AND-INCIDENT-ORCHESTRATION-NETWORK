@@ -1,6 +1,8 @@
 "use client";
 
 import React, { useState } from "react";
+import { useRouter } from "next/navigation";
+import { dashboardRouteForRoles } from "@/features/auth/dashboard-route";
 import { UserContextItem } from "@/contracts/identity";
 import { selectOrionContext, useActiveContext } from "./use-active-context";
 
@@ -14,6 +16,7 @@ export function ContextSwitcher({
   onContextChange,
 }: ContextSwitcherProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const router = useRouter();
   const loaded = useActiveContext();
   const contexts = loaded.contexts;
   const active = currentContext ?? loaded.activeContext;
@@ -21,6 +24,8 @@ export function ContextSwitcher({
   const handleSelect = (ctx: UserContextItem) => {
     selectOrionContext(ctx);
     setIsOpen(false);
+    router.push(dashboardRouteForRoles(ctx.roles.map((r) => r.role)) ?? "/student");
+    router.refresh();
     if (onContextChange) {
       onContextChange(ctx);
     }

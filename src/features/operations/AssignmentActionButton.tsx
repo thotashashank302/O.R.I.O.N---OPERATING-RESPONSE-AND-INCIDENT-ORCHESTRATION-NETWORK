@@ -33,13 +33,16 @@ export function AssignmentActionButton({
         type="button"
         disabled={submitting}
         onClick={async () => {
+          const reason = action === "handover" || action === "block"
+            ? window.prompt("Explain why this work needs handover:") : undefined;
+          if ((action === "handover" || action === "block") && !reason?.trim()) return;
           setSubmitting(true);
           setError(null);
           try {
             const response = await fetch(`/api/assignments/${assignmentId}/actions`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ action, expected_version: version }),
+              body: JSON.stringify({ action, expected_version: version, reason }),
             });
             if (!response.ok) {
               const payload = (await response.json().catch(() => null)) as { error?: { message?: string } } | null;

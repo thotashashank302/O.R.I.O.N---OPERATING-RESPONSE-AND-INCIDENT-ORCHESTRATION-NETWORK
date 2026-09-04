@@ -77,8 +77,8 @@ export function EvidenceForm({
     setError(null);
     setSuccessMsg(null);
 
-    if (!notes.trim() && !testResult.trim()) {
-      setError("At least a repair note or functional test result is required");
+    if (notes.trim().length < 10 || testResult.trim().length < 10) {
+      setError("Completion notes and functional test results must each contain at least 10 characters");
       return;
     }
 

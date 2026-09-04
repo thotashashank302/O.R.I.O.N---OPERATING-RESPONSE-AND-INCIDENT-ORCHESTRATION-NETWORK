@@ -1,3 +1,4 @@
+import { activeMembership } from "@/server/auth/active-membership";
 /**
  * POST /api/tasks/[id]/verify
  * Developer 4 (Anjali) owns this endpoint.
@@ -54,12 +55,7 @@ export async function POST(
     }
 
     // Resolve membership
-    const { data: membership } = await session
-      .from("institution_memberships")
-      .select("id, institution_id, status")
-      .eq("user_id", user.id)
-      .eq("status", "active")
-      .maybeSingle();
+    const { data: membership } = await activeMembership(session, user.id);
 
     if (!membership) {
       return NextResponse.json(

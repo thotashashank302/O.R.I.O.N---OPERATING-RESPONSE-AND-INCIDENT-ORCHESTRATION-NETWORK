@@ -1,3 +1,4 @@
+import { activeMembership } from "@/server/auth/active-membership";
 /**
  * ORION — HOD Dashboard
  * Developer 4 (Anjali) owns this file.
@@ -79,12 +80,7 @@ export default async function HODPage() {
   }
 
   // Resolve active membership
-  const { data: membership } = await supabase
-    .from("institution_memberships")
-    .select("id, institution_id, status")
-    .eq("user_id", user.id)
-    .eq("status", "active")
-    .maybeSingle();
+  const { data: membership } = await activeMembership(supabase, user.id);
 
   if (!membership) {
     redirect("/login");

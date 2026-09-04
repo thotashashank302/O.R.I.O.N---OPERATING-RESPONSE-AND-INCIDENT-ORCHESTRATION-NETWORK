@@ -8,6 +8,7 @@ const CONTEXT_EVENT = "orion-context-change";
 
 export function selectOrionContext(context: UserContextItem): void {
   window.localStorage.setItem(STORAGE_KEY, context.membership_id);
+  document.cookie = "orion-membership=" + encodeURIComponent(context.membership_id) + "; Path=/; SameSite=Lax" + (location.protocol === "https:" ? "; Secure" : "");
   window.dispatchEvent(new CustomEvent(CONTEXT_EVENT, { detail: context }));
 }
 

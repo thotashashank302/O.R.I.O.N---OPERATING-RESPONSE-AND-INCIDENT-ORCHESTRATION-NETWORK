@@ -1,5 +1,11 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
+vi.mock('next/server', async (importOriginal) => ({
+  ...await importOriginal<typeof import('next/server')>(),
+  after: vi.fn(),
+}));
+vi.mock('@/server/orchestration/production-worker', () => ({ createProductionWorker: vi.fn() }));
+
 vi.mock('@/server/auth/request-context', () => ({
   requireRequestContext: vi.fn(async (request: Request) => ({
     requestId: 'test-request',

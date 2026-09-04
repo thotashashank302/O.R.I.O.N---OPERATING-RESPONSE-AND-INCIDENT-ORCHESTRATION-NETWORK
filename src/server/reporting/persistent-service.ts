@@ -198,22 +198,13 @@ export async function confirmPersistentIncident(
   if (!current || current.reporterId !== context.membershipId) throw new Error("Unauthorized: only the reporter can confirm resolution");
   if (current.version !== expectedVersion) throw new Error("Version mismatch");
   if (current.state !== "submitted_for_verification") throw new Error("Invalid incident state for reporter confirmation");
-  const state = decision === "accepted" ? "resolved" : "reopened";
-  const now = new Date().toISOString();
-  const { data, error } = await createSupabaseAdmin().from("incidents").update({
-    state,
-    version: expectedVersion + 1,
-    resolved_at: decision === "accepted" ? now : null,
-    reopened_at: decision === "rejected" ? now : null,
-    updated_at: now,
-  }).eq("id", incidentId).eq("version", expectedVersion).select("*").single();
-  if (error) throw error;
-  await createSupabaseAdmin().from("incident_events").insert({
-    institution_id: context.institutionId, incident_id: incidentId, actor_membership_id: context.membershipId,
-    actor_type: "human", action: `reporter_${decision}`, safe_payload: { reason },
+  const { data, error } = await createSupabaseAdmin().rpc("orion_confirm_incident", {
+    target_id: incidentId, actor_id: context.membershipId, expected_version: expectedVersion, decision, reason,
   });
+  if (error) throw new Error(error.message);
+  const row = data as unknown as IncidentRow;
   const job = decision === "rejected"
-    ? await enqueueCommanderJob(incidentId, reason, `reporter-rejected-${data.version}`)
+    ? await enqueueCommanderJob(incidentId, reason, `reporter-rejected-${row.version}`)
     : null;
-  return { incident: project(data as IncidentRow), verification: { decision, reason }, job };
+  return { incident: project(row), verification: { decision, reason }, job };
 }

@@ -1,3 +1,4 @@
+import { verifySubmittedTask } from "./verify-task";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { commanderContextSchema } from "./schemas";
@@ -123,7 +124,7 @@ export function createProductionWorker(): DurableJobWorker {
       institution_id: job.institutionId,
       recipient_membership_id: assignment.assignee_membership_id,
       safe_text: "Reminder: an ORION task is waiting for your acknowledgement.",
-      link: `/assignments/${assignment.id}`,
+      link: "/staff#evidence",
     });
     if (notifyError) throw notifyError;
   };
@@ -186,6 +187,7 @@ export function createProductionWorker(): DurableJobWorker {
   );
 
   return new DurableJobWorker(new SupabaseJobStore(client), {
+    verification: verifySubmittedTask,
     commander: handleCommander,
     specialist: handleSpecialist,
     ack_reminder: handleAckReminder,

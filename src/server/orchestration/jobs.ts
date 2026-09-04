@@ -1,7 +1,7 @@
 import type { JobStatus } from "@/contracts/domain";
 
 export const JOB_TYPES = [
-  "commander", "specialist", "ack_reminder",
+  "commander", "specialist", "verification", "ack_reminder",
   "assignment_escalation", "verifier_reminder", "verifier_escalation", "outbox_delivery",
 ] as const;
 export type JobType = (typeof JOB_TYPES)[number];
@@ -40,7 +40,7 @@ export class DurableJobWorker {
   constructor(
     private readonly store: JobStore,
     private readonly handlers: Partial<Record<JobType, JobHandler>>,
-    private readonly options = { maxAttempts: 3, leaseSeconds: 290, batchSize: 5, budgetMs: 250_000 },
+    private readonly options = { maxAttempts: 3, leaseSeconds: 290, batchSize: 1, budgetMs: 180_000 },
   ) {}
 
   async tick(workerId: string, startedAt = Date.now()): Promise<WorkerResult> {
@@ -56,6 +56,7 @@ export class DurableJobWorker {
         }
         const handler = this.handlers[job.type];
         try {
+          if (job.attempt > this.options.maxAttempts) throw new Error("Job exceeded its attempt limit after lease recovery");
           if (!handler) throw new Error(`No handler registered for ${job.type}`);
           await handler(job);
           await this.store.succeed(job.id);

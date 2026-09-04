@@ -1,3 +1,4 @@
+import { activeMembership } from "@/server/auth/active-membership";
 /**
  * POST /api/tasks/[id]/evidence
  * Developer 4 (Anjali) owns this endpoint.
@@ -43,12 +44,7 @@ export async function POST(
     }
 
     // Resolve active membership
-    const { data: membership, error: memberError } = await session
-      .from("institution_memberships")
-      .select("id, institution_id, status")
-      .eq("user_id", user.id)
-      .eq("status", "active")
-      .single();
+    const { data: membership, error: memberError } = await activeMembership(session, user.id);
 
     if (memberError || !membership) {
       return NextResponse.json(
@@ -101,7 +97,7 @@ export async function POST(
 
     const { data: task } = await supabase
       .from("incident_tasks")
-      .select("plan_id")
+      .select("plan_id,evidence_version")
       .eq("id", taskId)
       .eq("institution_id", membership.institution_id)
       .maybeSingle();
@@ -143,16 +139,7 @@ export async function POST(
       );
     }
 
-    // Get current evidence version for this task
-    const { data: existing } = await supabase
-      .from("resolution_evidence")
-      .select("evidence_version")
-      .eq("task_id", taskId)
-      .order("evidence_version", { ascending: false })
-      .limit(1)
-      .single();
-
-    const nextVersion = ((existing as { evidence_version: number } | null)?.evidence_version ?? 0) + 1;
+    const nextVersion = task!.evidence_version;
 
     // Insert evidence record
     const { data: evidence, error: insertError } = await supabase

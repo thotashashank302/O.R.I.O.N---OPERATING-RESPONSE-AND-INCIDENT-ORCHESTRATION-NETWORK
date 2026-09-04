@@ -1882,6 +1882,26 @@ export type Database = {
         }[]
       }
       get_specialist_context: { Args: { job_id: string }; Returns: Json }
+      orion_assignment_action: {
+        Args: {
+          actor_id: string
+          expected_version: number
+          reason?: string
+          requested_action: string
+          target_id: string
+        }
+        Returns: Json
+      }
+      orion_confirm_incident: {
+        Args: {
+          actor_id: string
+          decision: string
+          expected_version: number
+          reason: string
+          target_id: string
+        }
+        Returns: Json
+      }
       persist_commander_plan: {
         Args: {
           agent_run_id: string

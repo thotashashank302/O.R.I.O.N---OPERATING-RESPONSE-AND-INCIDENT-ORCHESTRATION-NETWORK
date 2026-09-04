@@ -16,6 +16,7 @@ export function SignOutButton() {
         setLoading(true);
         await createSupabaseBrowserClient().auth.signOut();
         window.localStorage.removeItem("orion.active-membership-id");
+        document.cookie = "orion-membership=; Path=/; Max-Age=0; SameSite=Lax";
         router.replace("/login");
         router.refresh();
       }}

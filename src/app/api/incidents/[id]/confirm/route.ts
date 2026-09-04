@@ -1,3 +1,5 @@
+import { kickWorker } from "@/server/orchestration/kick";
+export const maxDuration = 300;
 import { NextRequest } from 'next/server';
 import { jsonSuccess, jsonError } from '@/server/http-envelope';
 import { ReporterConfirmationSchema } from '@/contracts/reporting';
@@ -30,6 +32,7 @@ export async function POST(
       validated.data.expectedVersion,
     );
 
+    kickWorker("incident-update");
     return jsonSuccess({
       incident: result.incident,
       verification: result.verification,

@@ -1,3 +1,5 @@
+import { kickWorker } from "@/server/orchestration/kick";
+export const maxDuration = 300;
 import { NextRequest } from 'next/server';
 import { jsonSuccess, jsonError } from '@/server/http-envelope';
 import { requireRequestContext } from '@/server/auth/request-context';
@@ -23,6 +25,7 @@ export async function POST(
 
     const result = await clarifyPersistentIncident(context, id, body.answer.trim(), body.expectedVersion);
 
+    kickWorker("incident-update");
     return jsonSuccess({ incident: result.incident, job: result.job });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Error submitting clarification';

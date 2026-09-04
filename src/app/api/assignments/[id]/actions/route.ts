@@ -1,3 +1,6 @@
+import { kickWorker } from "@/server/orchestration/kick";
+export const maxDuration = 300;
+import { activeMembership } from "@/server/auth/active-membership";
 /**
  * POST /api/assignments/[id]/actions
  * Developer 4 (Anjali) owns this endpoint.
@@ -46,12 +49,7 @@ export async function POST(
     }
 
     // Resolve active membership
-    const { data: membership, error: memberError } = await supabase
-      .from("institution_memberships")
-      .select("id, institution_id, status")
-      .eq("user_id", user.id)
-      .eq("status", "active")
-      .single();
+    const { data: membership, error: memberError } = await activeMembership(supabase, user.id);
 
     if (memberError || !membership) {
       return NextResponse.json(
@@ -101,6 +99,7 @@ export async function POST(
       parsed.data
     );
 
+    kickWorker("assignment-action");
     return NextResponse.json({ data: updated, requestId }, { status: 200 });
   } catch (err: unknown) {
     const status = (err as { status?: number }).status ?? 500;

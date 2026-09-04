@@ -1,9 +1,11 @@
-import { NextRequest } from 'next/server';
+import { after, NextRequest } from 'next/server';
 import { jsonSuccess, jsonError } from '@/server/http-envelope';
 import { CreateIncidentSchema } from '@/contracts/reporting';
 import { requireRequestContext } from '@/server/auth/request-context';
 import { createPersistentIncident, listPersistentIncidents } from '@/server/reporting/persistent-service';
 import { createProductionWorker } from '@/server/orchestration/production-worker';
+
+export const maxDuration = 300;
 
 export async function GET(req: NextRequest) {
   try {
@@ -35,11 +37,15 @@ export async function POST(req: NextRequest) {
 
     const result = await createPersistentIncident(context, validated.data);
 
-    // Fire-and-forget: immediately process the queued Commander job
-    // so the plan/assignment/email chain starts without waiting for the cron
+    // Keep the invocation alive after sending the response. Durable jobs remain
+    // recoverable by the scheduler if the process terminates.
     if (result.job) {
-      createProductionWorker().tick(`inline-${result.incident.id}`).catch((err) => {
-        console.error('[ORION] Inline tick failed (cron will retry):', err);
+      after(async () => {
+        try {
+          await createProductionWorker().tick(`report-${result.incident.id}`);
+        } catch (err) {
+          console.error('[ORION] Report worker failed; scheduler will retry', err);
+        }
       });
     }
 

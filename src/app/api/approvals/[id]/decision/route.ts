@@ -1,3 +1,4 @@
+import { activeMembership } from "@/server/auth/active-membership";
 /**
  * POST /api/approvals/[id]/decision
  * Developer 4 (Anjali) owns this endpoint, with D1 policy enforcement.
@@ -47,12 +48,7 @@ export async function POST(
     }
 
     // Resolve active membership
-    const { data: membership, error: memberError } = await session
-      .from("institution_memberships")
-      .select("id, institution_id, status")
-      .eq("user_id", user.id)
-      .eq("status", "active")
-      .single();
+    const { data: membership, error: memberError } = await activeMembership(session, user.id);
 
     if (memberError || !membership) {
       return NextResponse.json(

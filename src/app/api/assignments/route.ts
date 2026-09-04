@@ -1,3 +1,4 @@
+import { activeMembership } from "@/server/auth/active-membership";
 /**
  * GET /api/assignments
  * Developer 4 (Anjali) owns this endpoint.
@@ -31,12 +32,7 @@ export async function GET() {
     }
 
     // Resolve membership for this user
-    const { data: membership, error: memberError } = await supabase
-      .from("institution_memberships")
-      .select("id, institution_id, status")
-      .eq("user_id", user.id)
-      .eq("status", "active")
-      .single();
+    const { data: membership, error: memberError } = await activeMembership(supabase, user.id);
 
     if (memberError || !membership) {
       return NextResponse.json(

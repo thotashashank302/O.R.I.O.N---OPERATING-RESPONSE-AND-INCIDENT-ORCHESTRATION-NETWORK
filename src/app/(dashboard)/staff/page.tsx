@@ -1,3 +1,4 @@
+import { activeMembership } from "@/server/auth/active-membership";
 /**
  * ORION — Staff Dashboard
  * Developer 4 (Anjali) owns this file.
@@ -7,6 +8,8 @@
  * No cross-department or private case details exposed.
  */
 
+import { StaffEvidence } from "@/features/resolution/StaffEvidence";
+import { QueueRefresh } from "@/features/operations/QueueRefresh";
 import { redirect } from "next/navigation";
 import { createClient } from "@/server/db/client";
 import { getStaffAssignments } from "@/server/operations/assignments";
@@ -34,7 +37,7 @@ function AssignmentCard({ assignment }: { assignment: Assignment }) {
   const incident = assignment.incident;
   const task = assignment.task;
   const isOverdue =
-    assignment.acknowledgement_deadline &&
+    assignment.state === "offered" && assignment.acknowledgement_deadline &&
     new Date(assignment.acknowledgement_deadline) < new Date();
 
   return (
@@ -120,6 +123,7 @@ function AssignmentCard({ assignment }: { assignment: Assignment }) {
         </p>
       )}
 
+      {assignment.state === "active" && task && <StaffEvidence assignment={assignment} />}
       {/* Action buttons */}
       <div className="mt-4 flex flex-wrap gap-2">
         {assignment.state === "offered" && (
@@ -169,12 +173,7 @@ export default async function StaffPage() {
   }
 
   // Resolve active membership
-  const { data: membership } = await supabase
-    .from("institution_memberships")
-    .select("id, institution_id, status")
-    .eq("user_id", user.id)
-    .eq("status", "active")
-    .maybeSingle();
+  const { data: membership } = await activeMembership(supabase, user.id);
 
   if (!membership) {
     redirect("/login");
@@ -182,9 +181,7 @@ export default async function StaffPage() {
 
   // Fetch assignments and availability in parallel
   const [assignments, availabilityData] = await Promise.all([
-    getStaffAssignments(membership.id, membership.institution_id).catch(
-      () => [] as Assignment[]
-    ),
+    getStaffAssignments(membership.id, membership.institution_id),
     getAvailability(membership.id).catch(() => null),
   ]);
 
@@ -195,6 +192,7 @@ export default async function StaffPage() {
 
   return (
     <div className="px-4 py-8 sm:px-8">
+      <QueueRefresh />
       {/* Header */}
       <div className="mb-8">
         <h1 className="text-2xl font-bold">My Work Queue</h1>
@@ -235,7 +233,7 @@ export default async function StaffPage() {
         </div>
 
         {/* Right column: assignments */}
-        <div id="work" className="scroll-mt-6 space-y-4 lg:col-span-2">
+        <div id="evidence" className="scroll-mt-6 space-y-4 lg:col-span-2">
           {assignments.length === 0 ? (
             <div className="flex h-48 items-center justify-center rounded-2xl border border-dashed border-stone-300 text-sm text-stone-500">
               No active assignments. Check back soon.
