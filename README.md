@@ -31,7 +31,7 @@ Implemented and locally verified:
 
 Not yet externally verified:
 
-- Applied Supabase migrations, pgTAP and authenticated two-tenant RLS tests. The configured project is reachable but does not yet contain the ORION schema; local validation is blocked until Docker Desktop is responsive.
+- Authenticated two-user workflow acceptance. Four migrations are applied to the hosted ORION project, generated database types are checked in, all 34 public tables have RLS enabled, and rollback-only SQL assertions confirm unrelated users cannot read another institution. The optional hosted `pgtap` extension is not installed.
 - A completed Featherless model inference. The configured key and subscription are authenticated through `GET /v1/plan`, but the selected 70B model smoke request timed out.
 - Real Resend receipt/webhooks. The configured key authenticates as a send-only restricted key, which is appropriate for delivery but cannot list domains; no email was sent during integration.
 - Hosted Cron, deployed E2E, public URL, video and submission receipt.
@@ -113,7 +113,7 @@ npm run build
 npm run test:e2e
 ```
 
-Current integration result: typecheck and lint passed; 98 unit tests across 12 files passed; the production Webpack build generated 34 routes; and three Chromium E2E tests passed. The default Turbopack build cannot bind its internal CSS helper port on this host, while the supported Webpack build succeeds. Supabase pgTAP, two-tenant user-token tests, live email delivery and deployed recovery tests still require their external runtimes. See `docs/integration-status.md` and the developer progress files for exact evidence and blockers.
+Current integration result: typecheck and lint passed; 98 unit tests across 12 files passed; the production Webpack build generated 34 routes; and three Chromium E2E tests passed. Four migrations are applied to the hosted Supabase project, generated types compile, security advisors report no warnings/errors, and direct SQL RLS assertions pass. The default Turbopack build cannot bind its internal CSS helper port on this host, while the supported Webpack build succeeds. Authenticated multi-user acceptance, live email delivery and deployed recovery tests still require controlled accounts/inboxes. See `docs/integration-status.md` and the developer progress files for exact evidence and blockers.
 
 ## Controlled demo
 

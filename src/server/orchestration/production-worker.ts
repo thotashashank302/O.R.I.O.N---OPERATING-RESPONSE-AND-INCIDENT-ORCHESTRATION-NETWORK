@@ -12,6 +12,7 @@ import { ResendEmailTransport } from "@/server/email/resend-transport";
 import { getEmailDeliveryEnv, getServerEnv } from "@/server/env";
 import { DurableJobWorker, type JobRecord } from "./jobs";
 import { SupabaseJobStore } from "./supabase-job-store";
+import type { Json } from "@/contracts/database";
 
 export function createProductionWorker(): DurableJobWorker {
   const env = getServerEnv();
@@ -35,7 +36,7 @@ export function createProductionWorker(): DurableJobWorker {
         prompt_version: record.promptVersion,
         latency_ms: record.latencyMs,
         status: record.status,
-        validated_outcome: record.validatedOutcome,
+        validated_outcome: record.validatedOutcome as Json | undefined,
         safe_error: record.safeError,
       });
       if (error) throw error;
@@ -149,7 +150,7 @@ export function createProductionWorker(): DurableJobWorker {
       incident_id: job.incidentId,
       actor_type: "system",
       action,
-      safe_payload: job.payload,
+      safe_payload: job.payload as Json,
     });
     if (eventError) throw eventError;
   };

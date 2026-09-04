@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
-import type { AuthorizedContext } from "@/contracts/domain";
+import type { AuthorizedContext, IncidentState } from "@/contracts/domain";
+import type { Json, TablesInsert } from "@/contracts/database";
 import { CreateIncidentSchema, type CreateIncidentInput } from "@/contracts/reporting";
 import { runTriageAgent } from "@/server/agents/triage";
 import { createSupabaseAdmin } from "@/server/db/supabase-admin";
@@ -17,7 +18,7 @@ interface IncidentRow {
   location_text: string | null;
   description: string;
   severity: "low" | "normal" | "high" | "critical";
-  state: string;
+  state: IncidentState;
   version: number;
   triage_summary: string | null;
   clarification_request: { question: string; missingFields: string[] } | null;
@@ -108,7 +109,7 @@ export async function createPersistentIncident(context: AuthorizedContext, input
     created_at: now,
     updated_at: now,
   };
-  const { error } = await db.from("incidents").insert(row);
+  const { error } = await db.from("incidents").insert(row as unknown as TablesInsert<"incidents">);
   if (error) throw error;
   if (validated.attachments.length > 0) {
     const { error: attachmentError } = await db.from("incident_attachments").insert(validated.attachments.map((item) => ({
@@ -125,7 +126,7 @@ export async function createPersistentIncident(context: AuthorizedContext, input
   await db.from("agent_runs").insert({
     id: randomUUID(), institution_id: context.institutionId, incident_id: incidentId, agent_name: "triage",
     provider: log.provider, model: log.model, prompt_version: log.promptVersion, latency_ms: log.latencyMs,
-    status: log.status === "failed" ? "failed" : "succeeded", validated_outcome: triage, safe_error: log.error ?? null,
+    status: log.status === "failed" ? "failed" : "succeeded", validated_outcome: triage as unknown as Json, safe_error: log.error ?? null,
   });
   await db.from("incident_events").insert({
     institution_id: context.institutionId, incident_id: incidentId, actor_membership_id: context.membershipId,

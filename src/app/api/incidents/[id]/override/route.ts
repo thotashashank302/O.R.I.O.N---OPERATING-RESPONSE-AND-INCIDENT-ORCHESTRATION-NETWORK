@@ -10,7 +10,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { createClient } from "@/server/db/client";
+import { createClient, createServiceClient } from "@/server/db/client";
 import { randomUUID } from "crypto";
 
 const OverrideSchema = z.object({
@@ -28,13 +28,13 @@ export async function POST(
   const { id: incidentId } = await params;
 
   try {
-    const supabase = await createClient();
+    const session = await createClient();
 
     // Auth check
     const {
       data: { user },
       error: authError,
-    } = await supabase.auth.getUser();
+    } = await session.auth.getUser();
 
     if (authError || !user) {
       return NextResponse.json(
@@ -44,7 +44,7 @@ export async function POST(
     }
 
     // Resolve active membership
-    const { data: membership, error: memberError } = await supabase
+    const { data: membership, error: memberError } = await session
       .from("institution_memberships")
       .select("id, institution_id, status")
       .eq("user_id", user.id)
@@ -57,6 +57,8 @@ export async function POST(
         { status: 403 }
       );
     }
+
+    const supabase = await createServiceClient();
 
     // Verify HOD role for this institution
     const { data: hodGrant } = await supabase

@@ -85,7 +85,10 @@ export async function updateStaffCapabilities(
       updated_at: now,
     };
 
-    const { error } = await db.from("staff_capabilities").insert(newCap);
+    const { error } = await db.from("staff_capabilities").insert({
+      ...newCap,
+      updated_by: updatedByMembershipId || membershipId,
+    });
     if (error) return { success: false, error: error.message };
     return { success: true, data: newCap };
   }

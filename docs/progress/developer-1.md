@@ -26,7 +26,7 @@ Integration commit: created after the checks recorded below.
 - `npm run test`: pass, 98 tests across 12 files.
 - `npm run lint`: pass with zero warnings.
 - `npx next build --webpack`: pass with Next.js 16.3.4 and 34 generated routes. Default Turbopack still fails because its CSS helper cannot bind a local port on this host.
-- `supabase test db`: not run; Docker Desktop does not answer its daemon socket. A read-only project request succeeded but confirmed the ORION schema has not been applied.
+- Supabase: four migrations applied to the empty hosted ORION project; 34 public tables have RLS enabled, both evidence buckets are private, generated TypeScript types compile, and a rollback-only cross-tenant assertion passed. Hosted pgTAP was unavailable because the optional extension is not installed.
 - `npm run test:e2e`: pass, three Chromium tests. The run also found and verified the fix for conflicting `[id]`/`[incidentId]` API route segments.
 - Featherless: configured key verified with `GET /v1/plan` (HTTP 200); selected model inference timed out.
 - Resend: configured send-only key was recognized; no controlled email was sent and no webhook delivery is claimed.
@@ -34,8 +34,8 @@ Integration commit: created after the checks recorded below.
 
 ## Blockers and handoffs
 
-- Team/user: apply the two reviewed Supabase migrations to the intended isolated project, then run pgTAP and two-tenant authenticated checks.
+- Team/user: provide controlled authenticated accounts for the two-user workflow acceptance test.
 - Team/user: provide a controlled Resend recipient for real delivery/webhook acceptance, and enable hosted Cron/deployment when ready.
 - Provider: Featherless account authentication passes, but the selected 70B inference endpoint must respond within the application timeout before live AI acceptance.
 
-Next slice: apply the schema in the intended Supabase project, run pgTAP/two-tenant tests, execute a controlled report-to-replan flow, verify a real inbox/webhook, then deploy and validate worker recovery.
+Next slice: execute a controlled authenticated report-to-replan flow, verify a real inbox/webhook, then deploy and validate worker recovery.

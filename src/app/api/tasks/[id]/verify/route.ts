@@ -16,11 +16,12 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { createClient } from "@/server/db/client";
+import { createClient, createServiceClient } from "@/server/db/client";
 import { runVerificationAgent } from "@/server/agents/verification";
 import type { VerificationContext, ResolutionEvidence } from "@/contracts/operations";
 import { randomUUID } from "crypto";
 import { enqueueCommanderJob } from "@/server/orchestration/commander-enqueue";
+import type { Json } from "@/contracts/database";
 
 const VerifyRequestSchema = z.object({
   evidence_version: z.number().int().positive(),
@@ -37,13 +38,13 @@ export async function POST(
   const { id: taskId } = await params;
 
   try {
-    const supabase = await createClient();
+    const session = await createClient();
 
     // Auth check
     const {
       data: { user },
       error: authError,
-    } = await supabase.auth.getUser();
+    } = await session.auth.getUser();
 
     if (authError || !user) {
       return NextResponse.json(
@@ -53,7 +54,7 @@ export async function POST(
     }
 
     // Resolve membership
-    const { data: membership } = await supabase
+    const { data: membership } = await session
       .from("institution_memberships")
       .select("id, institution_id, status")
       .eq("user_id", user.id)
@@ -66,6 +67,9 @@ export async function POST(
         { status: 403 }
       );
     }
+
+
+    const supabase = await createServiceClient();
 
     // Parse body
     const body = await request.json();
@@ -234,8 +238,12 @@ export async function POST(
       task_id: taskId,
       task_logical_key: task.logical_task_key,
       specialist_profile: task.specialist_profile,
-      checklist: task.checklist ?? [],
-      evidence_requirements: task.evidence_requirements ?? [],
+      checklist: Array.isArray(task.checklist)
+        ? task.checklist.filter((item): item is string => typeof item === "string")
+        : [],
+      evidence_requirements: Array.isArray(task.evidence_requirements)
+        ? task.evidence_requirements.filter((item): item is string => typeof item === "string")
+        : [],
       submitted_evidence: submittedEvidence,
       incident_category: incidentCategory,
       requires_human_physical_check: requiresPhysical,
@@ -254,7 +262,7 @@ export async function POST(
       prompt_version: "verification-v1",
       latency_ms: 0,
       status: "succeeded",
-      validated_outcome: decision,
+      validated_outcome: decision as unknown as Json,
     });
     if (runError) throw runError;
 

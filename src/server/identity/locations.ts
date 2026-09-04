@@ -47,7 +47,14 @@ export async function createLocation(
     created_at: new Date().toISOString(),
   };
 
-  const { error } = await db.from("campus_locations").insert(newLocation);
+  const { error } = await db.from("campus_locations").insert({
+    id: newLocation.id,
+    institution_id: newLocation.institution_id,
+    parent_id: newLocation.parent_id,
+    kind: newLocation.kind,
+    label: newLocation.label,
+    asset_counts: newLocation.asset_counts,
+  });
   if (error) {
     return { success: false, error: error.message };
   }

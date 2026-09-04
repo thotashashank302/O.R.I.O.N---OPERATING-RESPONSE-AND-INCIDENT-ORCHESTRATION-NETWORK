@@ -152,7 +152,7 @@ export async function claimStudentMembership(
   }
 
   // 3. Invariant ID-01: matching verified roster email is required
-  if (rosterEntry.roster_email.toLowerCase() !== userEmail.toLowerCase()) {
+  if (!rosterEntry.roster_email || rosterEntry.roster_email.toLowerCase() !== userEmail.toLowerCase()) {
     return {
       success: false,
       error: "Email mismatch: The email on record for this roll number does not match your authenticated email.",
@@ -166,7 +166,9 @@ export async function claimStudentMembership(
       error: "This student roll number has already been claimed by another account.",
     };
   }
-  const rosterSectionId = rosterEntry.section_id ?? rosterEntry.section;
+  const rosterSectionId = rosterEntry.section_id
+    ?? (rosterEntry as unknown as { section?: string }).section
+    ?? null;
 
   // 5. Create or retrieve active institution membership
   const { data: existingMembership } = await db
@@ -192,7 +194,7 @@ export async function claimStudentMembership(
       id: membershipId,
       user_id: userId,
       institution_id: inst.id,
-      status: "active",
+      status: "active" as const,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
@@ -213,7 +215,7 @@ export async function claimStudentMembership(
       id: crypto.randomUUID(),
       institution_id: inst.id,
       membership_id: membershipId,
-      role: "student",
+      role: "student" as const,
       department_id: rosterEntry.department_id,
       section_id: rosterSectionId,
       starts_at: new Date().toISOString(),
@@ -234,6 +236,6 @@ export async function claimStudentMembership(
     success: true,
     membershipId,
     departmentId: rosterEntry.department_id,
-    section: rosterSectionId,
+    section: rosterSectionId ?? undefined,
   };
 }

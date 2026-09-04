@@ -13,7 +13,7 @@
  * - Persist state, timestamp, and audit event on every change
  */
 
-import { createClient } from "@/server/db/client";
+import { createServiceClient } from "@/server/db/client";
 import type {
   AvailabilityState,
   AvailabilityUpdateRequest,
@@ -39,7 +39,7 @@ export async function updateAvailability(
   institutionId: string,
   request: AvailabilityUpdateRequest
 ): Promise<AvailabilityUpdateResult> {
-  const supabase = await createClient();
+  const supabase = await createServiceClient();
 
   // 1. Fetch current capability record
   const { data: cap, error: capError } = await supabase
@@ -134,7 +134,7 @@ export async function updateAvailability(
  * Returns open (non-cancelled, non-completed) assignments for a staff member.
  */
 export async function getOpenAssignments(
-  supabase: Awaited<ReturnType<typeof createClient>>,
+  supabase: Awaited<ReturnType<typeof createServiceClient>>,
   membershipId: string
 ): Promise<Assignment[]> {
   const { data, error } = await supabase
@@ -152,7 +152,7 @@ export async function getOpenAssignments(
  * Keeps accountable owner until replacement accepts — never drops a task.
  */
 async function createHandoverEvents(
-  supabase: Awaited<ReturnType<typeof createClient>>,
+  supabase: Awaited<ReturnType<typeof createServiceClient>>,
   institutionId: string,
   membershipId: string,
   assignments: Assignment[],
@@ -205,7 +205,7 @@ export async function getAvailability(membershipId: string): Promise<{
   version: number;
   workload_limit: number;
 } | null> {
-  const supabase = await createClient();
+  const supabase = await createServiceClient();
 
   const { data, error } = await supabase
     .from("staff_capabilities")

@@ -7,7 +7,7 @@
  * The shared acknowledge path is callable by D5's email confirmation service.
  */
 
-import { createClient } from "@/server/db/client";
+import { createServiceClient } from "@/server/db/client";
 import type {
   Assignment,
   AssignmentState,
@@ -39,7 +39,7 @@ export async function performAssignmentAction(
   membershipId: string,
   request: AssignmentActionRequest
 ): Promise<Assignment> {
-  const supabase = await createClient();
+  const supabase = await createServiceClient();
 
   // 1. Fetch current assignment — must belong to this member
   const { data: current, error: fetchError } = await supabase
@@ -165,7 +165,7 @@ function resolveStates(action: string): {
 }
 
 async function recordHandoverEvent(
-  supabase: Awaited<ReturnType<typeof createClient>>,
+  supabase: Awaited<ReturnType<typeof createServiceClient>>,
   institutionId: string,
   incidentId: string,
   assignmentId: string,
@@ -181,7 +181,7 @@ async function recordHandoverEvent(
 }
 
 async function appendIncidentEvent(
-  supabase: Awaited<ReturnType<typeof createClient>>,
+  supabase: Awaited<ReturnType<typeof createServiceClient>>,
   event: {
     assignment_id: string;
     institution_id: string;

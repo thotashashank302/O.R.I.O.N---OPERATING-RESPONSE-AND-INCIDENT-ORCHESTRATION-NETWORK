@@ -14,7 +14,7 @@
  * - Explicitly release assignments — never delete history
  */
 
-import { createClient } from "@/server/db/client";
+import { createServiceClient } from "@/server/db/client";
 import { randomUUID } from "crypto";
 
 export interface SupervisorCancellationResult {
@@ -35,7 +35,7 @@ export async function supervisorCancelWork(
   reason: string,
   expectedVersion: number
 ): Promise<SupervisorCancellationResult> {
-  const supabase = await createClient();
+  const supabase = await createServiceClient();
   const now = new Date().toISOString();
 
   // Version check on incident
@@ -148,7 +148,7 @@ export async function replaceAbsentVerifier(
   actorMembershipId: string,
   reason: string
 ): Promise<void> {
-  const supabase = await createClient();
+  const supabase = await createServiceClient();
   const now = new Date().toISOString();
 
   const { data: task, error } = await supabase
@@ -233,7 +233,7 @@ export async function evaluateCarryForward(
     evidence_requirements: string[];
   }
 ): Promise<{ should_carry: boolean; reason: string }> {
-  const supabase = await createClient();
+  const supabase = await createServiceClient();
 
   const { data: prevTask } = await supabase
     .from("incident_tasks")
@@ -252,15 +252,18 @@ export async function evaluateCarryForward(
     | Array<{ human_result: string }>
     | null;
   const prevVerification = verificationRecords?.[0];
-  if (!prevVerification || prevVerification.human_result !== "confirmed") {
+  if (!prevVerification || prevVerification.human_result !== "pass") {
     return { should_carry: false, reason: "No confirmed human verification found" };
   }
 
   // Check if goal/profile/evidence requirements changed
   const keyMatch = prevTask.logical_task_key === newTaskDef.logical_task_key;
   const profileMatch = prevTask.specialist_profile === newTaskDef.specialist_profile;
+  const previousEvidence = Array.isArray(prevTask.evidence_requirements)
+    ? prevTask.evidence_requirements.filter((item): item is string => typeof item === "string")
+    : [];
   const evidenceMatch =
-    JSON.stringify(prevTask.evidence_requirements?.sort()) ===
+    JSON.stringify(previousEvidence.sort()) ===
     JSON.stringify(newTaskDef.evidence_requirements?.sort());
 
   if (!keyMatch) {
