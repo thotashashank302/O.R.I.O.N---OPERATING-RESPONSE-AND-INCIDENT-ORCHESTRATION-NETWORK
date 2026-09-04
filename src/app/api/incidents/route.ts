@@ -3,6 +3,7 @@ import { jsonSuccess, jsonError } from '@/server/http-envelope';
 import { CreateIncidentSchema } from '@/contracts/reporting';
 import { requireRequestContext } from '@/server/auth/request-context';
 import { createPersistentIncident, listPersistentIncidents } from '@/server/reporting/persistent-service';
+import { createProductionWorker } from '@/server/orchestration/production-worker';
 
 export async function GET(req: NextRequest) {
   try {
@@ -33,6 +34,15 @@ export async function POST(req: NextRequest) {
     }
 
     const result = await createPersistentIncident(context, validated.data);
+
+    // Fire-and-forget: immediately process the queued Commander job
+    // so the plan/assignment/email chain starts without waiting for the cron
+    if (result.job) {
+      createProductionWorker().tick(`inline-${result.incident.id}`).catch((err) => {
+        console.error('[ORION] Inline tick failed (cron will retry):', err);
+      });
+    }
+
     return jsonSuccess(
       {
         incident: result.incident,
