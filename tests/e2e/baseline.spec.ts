@@ -1,0 +1,26 @@
+import { expect, test } from "@playwright/test";
+
+test("renders the integration baseline without claiming a finished product", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByRole("heading", { name: /Incident coordination/ })).toBeVisible();
+  await expect(page.getByText(/Product UI remains intentionally minimal/)).toBeVisible();
+});
+
+test("secure acknowledgement GET is non-mutating and handles missing links", async ({ page }) => {
+  await page.goto("/email-actions/confirm");
+  await expect(page.getByRole("heading", { name: "Acknowledge your assignment" })).toBeVisible();
+  await expect(page.getByText("The action link is missing or incomplete.", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Acknowledge assignment" })).toHaveCount(0);
+  await page.screenshot({ path: ".impeccable/review/desktop.png", fullPage: true });
+});
+
+test("secure acknowledgement form remains usable on a phone viewport", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/email-actions/confirm?token=abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnop");
+  const button = page.getByRole("button", { name: "Acknowledge assignment" });
+  await expect(button).toBeVisible();
+  const box = await button.boundingBox();
+  expect(box?.width).toBeGreaterThan(250);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  await page.screenshot({ path: ".impeccable/review/mobile.png", fullPage: true });
+});
