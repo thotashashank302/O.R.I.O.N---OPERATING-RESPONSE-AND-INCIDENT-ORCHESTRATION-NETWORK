@@ -47,6 +47,7 @@ async function main() {
   // 2. Triage Agent Analysis
   console.log("[STEP 2] Triage Agent — Analyzing incident report & safety risks...");
   const triageOutput = await runTriageAgent({
+    incidentId: incident.id,
     institutionId,
     description: reportDescription,
     locationText,
