@@ -43,7 +43,8 @@ export async function POST(req: NextRequest) {
       try {
         after(async () => {
           try {
-            await createProductionWorker().tick(`report-${result.incident.id}`);
+            const workerResult = await createProductionWorker().tick(`report-${result.incident.id}`);
+            console.info('[ORION] Report worker completed', { incidentId: result.incident.id, ...workerResult });
           } catch (err) {
             console.error('[ORION] Report worker failed; scheduler will retry', err);
           }

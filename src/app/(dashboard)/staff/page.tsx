@@ -17,6 +17,8 @@ import { getAvailability } from "@/server/operations/availability";
 import { AvailabilityControl } from "@/features/staff-availability/AvailabilityControl";
 import { AssignmentActionButton } from "@/features/operations/AssignmentActionButton";
 import type { Assignment } from "@/contracts/operations";
+import { NotificationList } from "@/features/notifications/notification-list";
+import type { Notification } from "@/features/notifications/contracts";
 
 const SEVERITY_BADGE: Record<string, string> = {
   critical: "bg-red-50 text-red-700 border-red-300",
@@ -42,6 +44,7 @@ function AssignmentCard({ assignment }: { assignment: Assignment }) {
 
   return (
     <div
+      id={`assignment-${assignment.id}`}
       className={`rounded-2xl border bg-white/80 p-5 transition-all hover:border-stone-400 ${
         isOverdue ? "border-red-300" : "border-stone-200"
       }`}
@@ -180,10 +183,26 @@ export default async function StaffPage() {
   }
 
   // Fetch assignments and availability in parallel
-  const [assignments, availabilityData] = await Promise.all([
+  const [assignments, availabilityData, notificationResult] = await Promise.all([
     getStaffAssignments(membership.id, membership.institution_id),
     getAvailability(membership.id).catch(() => null),
+    supabase.from("notifications")
+      .select("id,safe_text,link,read_at,created_at,version")
+      .eq("institution_id", membership.institution_id)
+      .eq("recipient_membership_id", membership.id)
+      .order("created_at", { ascending: false })
+      .limit(20),
   ]);
+  const notifications: Notification[] = (notificationResult.data ?? []).map((item) => ({
+    id: item.id,
+    safeText: item.safe_text,
+    link: item.link?.startsWith("/assignments/")
+      ? `/staff#assignment-${item.link.slice("/assignments/".length)}`
+      : item.link,
+    readAt: item.read_at,
+    createdAt: item.created_at,
+    version: item.version,
+  }));
 
   const activeCount = assignments.filter(
     (a) => a.state === "active" || a.state === "acknowledged"
@@ -200,6 +219,21 @@ export default async function StaffPage() {
           Showing your authorized assignments only
         </p>
       </div>
+
+      <section className="mb-8" aria-labelledby="staff-notifications-title">
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <h2 id="staff-notifications-title" className="text-lg font-semibold">Notifications</h2>
+          <span className="rounded-full bg-cyan-100 px-2.5 py-1 text-xs font-semibold text-cyan-800">
+            {notifications.filter((item) => !item.readAt).length} unread
+          </span>
+        </div>
+        <NotificationList
+          key={notifications.map((item) => `${item.id}:${item.version}`).join("|")}
+          initialNotifications={notifications}
+          institutionId={membership.institution_id}
+          membershipId={membership.id}
+        />
+      </section>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         {/* Left column: availability + stats */}

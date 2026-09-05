@@ -298,7 +298,6 @@ async function persistCommanderPlanFallback(
   if (hasApproval) {
     for (const t of plan.tasks) {
       if (t.requiresApproval) {
-        const taskId = taskMap.get(t.localId)!;
         const payloadHash = createHash("sha256").update(JSON.stringify(t)).digest("hex");
         const { error: appErr } = await client.from("approvals").insert({
           id: randomUUID(),
@@ -519,5 +518,4 @@ async function persistSpecialistActionFallback(
 
   return assignmentId;
 }
-
 

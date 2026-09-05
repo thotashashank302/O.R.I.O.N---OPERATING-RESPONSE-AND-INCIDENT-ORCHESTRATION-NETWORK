@@ -3,13 +3,8 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
-import { createSupabaseBrowserClient } from "@/features/auth/supabase-browser";
-import { fetchAuthenticatedContexts } from "@/features/auth/context";
-import { dashboardRouteForContexts } from "@/features/auth/dashboard-route";
 
 export default function LoginPage() {
-  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -28,21 +23,19 @@ export default function LoginPage() {
         return;
       }
 
-      const supabase = createSupabaseBrowserClient();
-      const { error: authError } = await supabase.auth.signInWithPassword({
-        email: email.trim(),
-        password,
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ email, password }),
       });
-      if (authError) throw new Error("Invalid email or password.");
-
-      const contexts = await fetchAuthenticatedContexts();
-      const destination = dashboardRouteForContexts(contexts);
-      if (!destination) {
-        await supabase.auth.signOut();
-        throw new Error("Your account has no active ORION membership. Claim or request campus access first.");
+      const payload = (await response.json()) as {
+        data?: { destination?: string };
+        error?: { message?: string };
+      };
+      if (!response.ok || !payload.data?.destination) {
+        throw new Error(payload.error?.message ?? "Failed to sign in. Check your credentials.");
       }
-      router.replace(destination);
-      router.refresh();
+      window.location.assign(payload.data.destination);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to sign in. Check your credentials.");
     } finally {

@@ -652,8 +652,8 @@ begin
     end if;
     task_unchanged := prior_task.id is not null
       and prior_task.goal = task_payload->>'goal'
-      and prior_task.evidence_requirements @> task_payload->'evidencePolicy'
-      and task_payload->'evidencePolicy' @> prior_task.evidence_requirements;
+      and prior_task.evidence_requirements @> (task_payload->'evidencePolicy')
+      and (task_payload->'evidencePolicy') @> prior_task.evidence_requirements;
     if prior_task.id is not null and not task_unchanged and exists (
       select 1 from public.assignments assignment where assignment.task_id = prior_task.id and assignment.active_version
     ) then

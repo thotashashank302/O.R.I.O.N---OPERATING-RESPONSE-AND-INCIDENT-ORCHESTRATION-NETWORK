@@ -214,7 +214,7 @@ export async function replaceAbsentVerifier(
     institution_id: task.institution_id,
     recipient_membership_id: newVerifierMembershipId,
     safe_text: `You have been assigned as verifier for task ${taskId}. Please review and confirm within 20 minutes.`,
-    link: `/incidents/${taskId}`,
+    link: plan?.incident_id ? `/incidents/${plan.incident_id}` : null,
     created_at: now,
   });
 }

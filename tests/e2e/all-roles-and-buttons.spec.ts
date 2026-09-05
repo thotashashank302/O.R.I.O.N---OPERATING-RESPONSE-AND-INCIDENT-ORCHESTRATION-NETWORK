@@ -72,8 +72,6 @@ test.describe("ORION Multi-Role Dashboard & Button Operations", () => {
     // Test Availability toggle buttons
     const availBtn = page.getByRole("button", { name: "Available" });
     const busyBtn = page.getByRole("button", { name: "Busy" });
-    const offDutyBtn = page.getByRole("button", { name: "Off Duty" });
-
     if (await busyBtn.isVisible()) {
       await busyBtn.click();
       await page.waitForTimeout(1000);

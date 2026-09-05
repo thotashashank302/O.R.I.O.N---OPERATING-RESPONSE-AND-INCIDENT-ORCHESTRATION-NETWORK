@@ -28,12 +28,10 @@ export function MembershipList({
   const { activeContext } = useActiveContext();
   const [members, setMembers] = useState<MemberItem[]>(initialMembers ?? []);
   const [search, setSearch] = useState("");
+  const [actionError, setActionError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (initialMembers) {
-      setMembers(initialMembers);
-      return;
-    }
+    if (initialMembers) return;
     let cancelled = false;
     async function loadMembers() {
       try {
@@ -56,6 +54,7 @@ export function MembershipList({
 
   const handleToggle = async (id: string, currentStatus: "active" | "inactive") => {
     const nextStatus = currentStatus === "active" ? "inactive" : "active";
+    setActionError(null);
 
     // Optimistic UI
     setMembers((prev) =>
@@ -63,17 +62,22 @@ export function MembershipList({
     );
 
     try {
-      await fetch(`/api/memberships/${id}/status`, {
+      const response = await fetch(`/api/memberships/${id}/status`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json", ...(activeContext ? orionContextHeaders(activeContext) : {}) },
         body: JSON.stringify({ status: nextStatus }),
       });
+      if (!response.ok) {
+        const payload = (await response.json().catch(() => null)) as { error?: { message?: string } } | null;
+        throw new Error(payload?.error?.message ?? "Membership status could not be updated.");
+      }
       if (onToggleStatus) onToggleStatus(id, nextStatus);
-    } catch {
+    } catch (error) {
       // Rollback on error
       setMembers((prev) =>
         prev.map((m) => (m.id === id ? { ...m, status: currentStatus } : m))
       );
+      setActionError(error instanceof Error ? error.message : "Membership status could not be updated.");
     }
   };
 
@@ -87,6 +91,7 @@ export function MembershipList({
 
   return (
     <div className="rounded-2xl border border-slate-800/80 bg-slate-900/60 backdrop-blur-xl overflow-hidden shadow-xl">
+      {actionError ? <p role="alert" className="m-4 rounded-lg border border-red-700 bg-red-950/60 p-3 text-xs text-red-200">{actionError}</p> : null}
       <div className="p-5 border-b border-slate-800/80 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h3 className="text-base font-semibold text-white">Campus Membership & Roles</h3>
