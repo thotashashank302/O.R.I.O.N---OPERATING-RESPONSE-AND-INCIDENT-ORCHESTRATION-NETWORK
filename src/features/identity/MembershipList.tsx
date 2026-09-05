@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { orionContextHeaders, useActiveContext } from "./use-active-context";
 
 export interface MemberItem {
@@ -27,8 +27,32 @@ export function MembershipList({
 }: MembershipListProps) {
   const { activeContext } = useActiveContext();
   const [members, setMembers] = useState<MemberItem[]>(initialMembers ?? []);
-
   const [search, setSearch] = useState("");
+
+  useEffect(() => {
+    if (initialMembers) {
+      setMembers(initialMembers);
+      return;
+    }
+    let cancelled = false;
+    async function loadMembers() {
+      try {
+        const res = await fetch("/api/memberships", {
+          headers: activeContext ? orionContextHeaders(activeContext) : {},
+        });
+        const json = await res.json();
+        if (!cancelled && json.data) {
+          setMembers(json.data);
+        }
+      } catch (err) {
+        console.error("Failed to load members:", err);
+      }
+    }
+    loadMembers();
+    return () => {
+      cancelled = true;
+    };
+  }, [initialMembers, activeContext]);
 
   const handleToggle = async (id: string, currentStatus: "active" | "inactive") => {
     const nextStatus = currentStatus === "active" ? "inactive" : "active";

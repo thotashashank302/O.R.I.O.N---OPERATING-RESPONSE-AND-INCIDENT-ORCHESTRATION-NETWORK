@@ -182,9 +182,10 @@ export async function runVerificationAgent(
             { role: "system", content: systemPrompt },
             { role: "user", content: userMessage },
           ],
+          max_tokens: 1024,
           response_format: { type: "json_object" },
         }),
-        signal: AbortSignal.timeout(30_000), // 30s AI timeout per contracts §8
+        signal: AbortSignal.timeout(60_000), // 60s AI timeout
       });
 
       if (response.status === 429 || response.status >= 500) {

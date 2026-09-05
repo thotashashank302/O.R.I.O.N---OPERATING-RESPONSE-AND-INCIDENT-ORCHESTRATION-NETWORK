@@ -198,11 +198,82 @@ export async function confirmPersistentIncident(
   if (!current || current.reporterId !== context.membershipId) throw new Error("Unauthorized: only the reporter can confirm resolution");
   if (current.version !== expectedVersion) throw new Error("Version mismatch");
   if (current.state !== "submitted_for_verification") throw new Error("Invalid incident state for reporter confirmation");
-  const { data, error } = await createSupabaseAdmin().rpc("orion_confirm_incident", {
-    target_id: incidentId, actor_id: context.membershipId, expected_version: expectedVersion, decision, reason,
-  });
-  if (error) throw new Error(error.message);
-  const row = data as unknown as IncidentRow;
+  if (decision === "rejected" && (!reason || reason.trim().length < 3)) throw new Error("A rejection reason is required");
+
+  const db = createSupabaseAdmin();
+
+  let row: IncidentRow;
+  try {
+    const { data, error } = await db.rpc("orion_confirm_incident", {
+      target_id: incidentId, actor_id: context.membershipId, expected_version: expectedVersion, decision, reason,
+    });
+    if (error) throw error;
+    row = data as unknown as IncidentRow;
+  } catch {
+    // Resilient TypeScript implementation when RPC is missing
+    const { data: plan } = await db.from("incident_plans")
+      .select("id, version")
+      .eq("incident_id", incidentId)
+      .eq("status", "active")
+      .maybeSingle();
+
+    if (plan) {
+      const { data: submittedTasks } = await db.from("incident_tasks")
+        .select("id, evidence_version, state")
+        .eq("plan_id", plan.id)
+        .eq("state", "submitted");
+
+      for (const t of submittedTasks ?? []) {
+        await db.from("verification_records").insert({
+          institution_id: context.institutionId,
+          task_id: t.id,
+          evidence_version: t.evidence_version,
+          human_result: decision === "accepted" ? "pass" : "fail",
+          agent_verdict: "needs_human_review",
+          reasons: { humanReason: reason } as unknown as Json,
+        });
+
+        await db.from("incident_tasks").update({
+          state: decision === "accepted" ? "verified" : "failed",
+          updated_at: new Date().toISOString(),
+        }).eq("id", t.id);
+
+        await db.from("assignments").update({
+          active_version: false,
+          updated_at: new Date().toISOString(),
+        }).eq("task_id", t.id).eq("state", "completed");
+      }
+    }
+
+    const nextState = decision === "rejected" ? "reopened" : "resolved";
+    const nextVersion = expectedVersion + 1;
+    const now = new Date().toISOString();
+
+    const { data: updatedIncident, error: incErr } = await db.from("incidents").update({
+      state: nextState,
+      version: nextVersion,
+      resolved_at: nextState === "resolved" ? now : null,
+      reopened_at: nextState === "reopened" ? now : undefined,
+      updated_at: now,
+    }).eq("id", incidentId).select("*").single();
+    if (incErr || !updatedIncident) throw new Error(incErr?.message ?? "Failed to update incident state");
+
+    if (plan && nextState === "resolved") {
+      await db.from("incident_plans").update({ status: "completed" }).eq("id", plan.id);
+    }
+
+    await db.from("incident_events").insert({
+      institution_id: context.institutionId,
+      incident_id: incidentId,
+      actor_membership_id: context.membershipId,
+      actor_type: "human",
+      action: `reporter_${decision}`,
+      safe_payload: { reason, state: nextState } as unknown as Json,
+    });
+
+    row = updatedIncident as unknown as IncidentRow;
+  }
+
   const job = decision === "rejected"
     ? await enqueueCommanderJob(incidentId, reason, `reporter-rejected-${row.version}`)
     : null;

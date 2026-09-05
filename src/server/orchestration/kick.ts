@@ -8,6 +8,9 @@ export function kickWorker(reason: string) {
       catch (error) { console.error("[ORION] Worker interrupted; durable jobs remain queued", error); }
     });
   } catch (error) {
-    console.warn("[ORION] kickWorker outside request context; durable jobs remain queued", error);
+    console.warn("[ORION] kickWorker outside request context; ticking worker asynchronously in background", error);
+    createProductionWorker().tick(reason).catch((workerErr) => {
+      console.error("[ORION] Background fallback worker tick error:", workerErr);
+    });
   }
 }

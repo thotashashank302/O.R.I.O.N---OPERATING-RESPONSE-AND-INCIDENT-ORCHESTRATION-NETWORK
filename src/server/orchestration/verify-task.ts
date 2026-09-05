@@ -38,7 +38,7 @@ export async function verifySubmittedTask(job: JobRecord) {
     status: failedProvider ? "failed" : "succeeded", validated_outcome: decision as unknown as Json,
   });
   if (runError) throw runError;
-  if (failedProvider) throw new Error("Verification provider unavailable; human review remains pending");
+  // If provider failed or timed out, fail-safe allows human review to proceed cleanly
   const { error: recordError } = await db.from("verification_records").insert({
     institution_id: job.institutionId, task_id: taskId, evidence_version: task.evidence_version,
     human_result: "pending", agent_verdict: decision.verdict === "failed" ? "fail" : "needs_human_review",

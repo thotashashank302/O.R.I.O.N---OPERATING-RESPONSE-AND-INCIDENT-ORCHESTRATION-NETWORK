@@ -4,21 +4,29 @@
 
 ---
 
+## 🌐 Live Deployment & Demo Access
+
+- **Live Production URL**: [https://orion-incident-orchestration-git-shashank-1-shadow-monarch1.vercel.app](https://orion-incident-orchestration-git-shashank-1-shadow-monarch1.vercel.app)
+- **Local URL**: [http://localhost:3000](http://localhost:3000)
+- **Universal Demo Password**: `OrionDemo2026!`
+- **Verified Email Recipients**: `lokinindi.shivani@gmail.com`, `thotashashank302@gmail.com`
+
+---
+
 ## 🚀 Demo Accounts & Role Matrix
 
 The controlled demo college (**ORION-DEMO / ORION Controlled Demo College**) is seeded with dedicated credentials for every institutional role.
 
-### **Credentials**
-> **Universal Demo Password:** `OrionDemo2026!`
+### **Credentials & Interactive Role Portals**
 
-| Role | Email | Target Dashboard | Key Capabilities |
-|---|---|---|---|
-| **Student** | `student.aiml@orion-demo.edu` | [`/student`](http://localhost:3000/student) | Lodge public or confidential incident reports, view live campus issue feed, answer AI location clarifications, upvote existing issues. |
-| **Class Representative (CR)** | `cr.aiml@orion-demo.edu` | [`/cr`](http://localhost:3000/cr) | Report classroom infrastructure issues, inspect technician repairs at the **Verification Desk**, accept or reject repairs with cause. |
-| **Staff (Facilities)** | `staff.facilities@orion-demo.edu` | [`/staff`](http://localhost:3000/staff) | Manage duty availability (**Available / Busy / Off-Duty**), acknowledge tasks, upload repair notes, functional tests, and photo evidence. |
-| **Staff (Electrician)** | `staff.electrician@orion-demo.edu` | [`/staff`](http://localhost:3000/staff) | Handle electrical safety assignments, isolate hazards, submit safety clearance certificates. |
-| **Head of Department (HOD)** | `hod.facilities@orion-demo.edu` | [`/hod`](http://localhost:3000/hod) | **Approval Console**: Review high-risk action requests, approve/reject hazardous plans with audit reasons, supervise department queue. |
-| **Principal** | `principal@orion-demo.edu` | [`/principal`](http://localhost:3000/principal) | **Executive Oversight**: College setup & campus structure, department creation, student/staff roster management, role grant appointments. |
+| Role | Email | Production Portal | Localhost Portal | Interactive Buttons & Workflows |
+|---|---|---|---|---|
+| **Student** | `student.aiml@orion-demo.edu` | [Student Portal](https://orion-incident-orchestration-git-shashank-1-shadow-monarch1.vercel.app/student) | [`/student`](http://localhost:3000/student) | `+ Report Issue` modal, `Submit Incident Report`, `▲ Upvote`, `Answer Clarification`, `Accept & Close Incident`, `Reject & Reopen`. |
+| **Class Representative (CR)** | `cr.aiml@orion-demo.edu` | [CR Portal](https://orion-incident-orchestration-git-shashank-1-shadow-monarch1.vercel.app/cr) | [`/cr`](http://localhost:3000/cr) | `Report Classroom Issue`, `Verification Desk`, on-site physical inspection review, accept/reject repairs with causes. |
+| **Staff (Electrician)** | `staff.electrician@orion-demo.edu` | [Staff Console](https://orion-incident-orchestration-git-shashank-1-shadow-monarch1.vercel.app/staff) | [`/staff`](http://localhost:3000/staff) | Availability toggles (`Available`, `Busy`, `Off Duty`), `Acknowledge Task`, `Start Work`, `Submit Evidence` (repair notes + functional test results). |
+| **Staff (Facilities)** | `staff.facilities@orion-demo.edu` | [Staff Console](https://orion-incident-orchestration-git-shashank-1-shadow-monarch1.vercel.app/staff) | [`/staff`](http://localhost:3000/staff) | Duty availability toggles, maintenance queue, task acknowledgement, evidence upload. |
+| **Head of Department (HOD)** | `hod.facilities@orion-demo.edu` | [HOD Operations](https://orion-incident-orchestration-git-shashank-1-shadow-monarch1.vercel.app/hod) | [`/hod`](http://localhost:3000/hod) | **Approval Console**: `Approve` and `Reject` high-risk/hazardous execution plans with audit reasons, department incident queue. |
+| **Principal** | `principal@orion-demo.edu` | [Principal Governance](https://orion-incident-orchestration-git-shashank-1-shadow-monarch1.vercel.app/principal) | [`/principal`](http://localhost:3000/principal) | `Manage Roles` authorization modal, Roster Management table, College Setup tabs (`College`, `Department`, `Location`, `Roster`). |
 
 ---
 
@@ -104,14 +112,14 @@ FEATHERLESS_MODEL=meta-llama/Llama-3.3-70B-Instruct
 # Email Service (Resend)
 RESEND_API_KEY=re_...
 RESEND_FROM=ORION Operations <notifications@yourdomain.com>
-APP_URL=http://localhost:3000
+APP_URL=https://orion-incident-orchestration-git-shashank-1-shadow-monarch1.vercel.app # or http://localhost:3000 for local dev
 EMAIL_ACTION_SECRET=your_secure_random_action_secret
 AUTOMATION_SECRET=your_secure_random_automation_secret
 CRON_SECRET=your_cron_secret
 
 # Demo Environment
-DEMO_MODE=true
-DEMO_RECIPIENT_ALLOWLIST=your_email@example.com
+DEMO_MODE=false
+DEMO_RECIPIENT_ALLOWLIST="lokinindi.shivani@gmail.com,thotashashank302@gmail.com"
 ```
 
 ### 4. Run Development Server

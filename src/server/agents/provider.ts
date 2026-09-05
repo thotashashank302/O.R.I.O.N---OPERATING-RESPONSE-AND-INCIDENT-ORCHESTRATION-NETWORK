@@ -64,6 +64,8 @@ export class FeatherlessProvider {
         body: JSON.stringify({
           model: this.config.model,
           temperature: 0.1,
+          max_tokens: 1536,
+          response_format: { type: "json_object" },
           messages: [
             { role: "system", content: `${request.system}\nYour response must match this JSON Schema exactly:\n${JSON.stringify(z.toJSONSchema(request.schema))}` },
             { role: "user", content: JSON.stringify({ kind: repair ? "repair_data" : "untrusted_incident_data", data: request.userData }) },

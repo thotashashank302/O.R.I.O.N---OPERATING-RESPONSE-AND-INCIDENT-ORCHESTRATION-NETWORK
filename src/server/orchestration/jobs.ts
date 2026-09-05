@@ -62,7 +62,11 @@ export class DurableJobWorker {
           await this.store.succeed(job.id);
           result.succeeded += 1;
         } catch (error) {
-          const reason = error instanceof Error ? error.message.slice(0, 300) : "Unknown job failure";
+          const reason = error instanceof Error
+            ? error.message.slice(0, 300)
+            : typeof error === "object" && error !== null && "message" in error && typeof (error as { message: unknown }).message === "string"
+            ? (error as { message: string }).message.slice(0, 300)
+            : String(error).slice(0, 300);
           if (job.attempt >= this.options.maxAttempts) {
             await this.store.dead(job.id, reason);
             await this.store.notifySupervisor(job, reason);

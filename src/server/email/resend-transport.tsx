@@ -21,10 +21,15 @@ export class ResendEmailTransport implements EmailTransport {
   }
 
   async sendAssignment(message: AssignmentEmail): Promise<{ providerId: string }> {
+    const isDemoAddress = message.recipient.endsWith("@orion-demo.edu") || message.recipient.endsWith(".local") || message.recipient.endsWith(".test");
+    const verifiedFallback = process.env.DEMO_RECIPIENT_ALLOWLIST?.split(",")[0]?.replace(/["']/g, "").trim() || "lokinindi.shivani@gmail.com";
+    const targetRecipient = isDemoAddress ? verifiedFallback : message.recipient;
+    const subjectPrefix = isDemoAddress ? `[ORION for ${message.recipient}] ` : "";
+
     const { data, error } = await this.resend.emails.send({
       from: this.from,
-      to: [message.recipient],
-      subject: message.urgent ? "Urgent ORION task requires acknowledgement" : "ORION task requires acknowledgement",
+      to: [targetRecipient],
+      subject: `${subjectPrefix}${message.urgent ? "Urgent ORION task requires acknowledgement" : "ORION task requires acknowledgement"}`,
       react: AssignmentNotification({
         actionUrl: message.actionUrl,
         acknowledgementDeadline: message.acknowledgementDeadline,

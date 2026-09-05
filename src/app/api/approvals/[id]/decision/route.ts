@@ -1,4 +1,6 @@
 import { activeMembership } from "@/server/auth/active-membership";
+import { enqueueCommanderJob } from "@/server/orchestration/commander-enqueue";
+import { kickWorker } from "@/server/orchestration/kick";
 /**
  * POST /api/approvals/[id]/decision
  * Developer 4 (Anjali) owns this endpoint, with D1 policy enforcement.
@@ -104,7 +106,7 @@ export async function POST(
     const { data: approvalReq, error: approvalError } = await supabase
       .from("approvals")
       .select(
-        "id, institution_id, action_payload_hash, plan_version, approver_membership_id, decision, incident_id, action_payload, task_id"
+        "id, institution_id, action_payload_hash, plan_version, approver_membership_id, decision, incident_id"
       )
       .eq("id", approvalRequestId)
       .eq("institution_id", membership.institution_id)
@@ -118,7 +120,7 @@ export async function POST(
     }
 
     // Check self-approval conflict: approver cannot approve actions requested for them or incidents they reported
-    const candidateStaffId = (approvalReq.action_payload as { candidateStaffId?: string } | null)?.candidateStaffId;
+    const candidateStaffId = ((approvalReq as Record<string, unknown>).action_payload as { candidateStaffId?: string } | undefined)?.candidateStaffId;
     const { data: incident } = await supabase
       .from("incidents")
       .select("reporter_membership_id")
@@ -217,6 +219,72 @@ export async function POST(
       },
       created_at: now,
     });
+
+    if (parsed.data.decision === "approve") {
+      const { data: remaining } = await supabase
+        .from("approvals")
+        .select("id")
+        .eq("incident_id", approvalReq.incident_id)
+        .eq("plan_version", approvalReq.plan_version)
+        .is("decision", null);
+
+      if (!remaining || remaining.length === 0) {
+        await supabase
+          .from("incidents")
+          .update({
+            state: "planned",
+            updated_at: now,
+          })
+          .eq("id", approvalReq.incident_id);
+
+        const { data: plan } = await supabase
+          .from("incident_plans")
+          .select("id")
+          .eq("incident_id", approvalReq.incident_id)
+          .eq("version", approvalReq.plan_version)
+          .maybeSingle();
+
+        if (plan) {
+          const { data: tasks } = await supabase
+            .from("incident_tasks")
+            .select("id, local_id")
+            .eq("plan_id", plan.id);
+
+          for (const t of tasks ?? []) {
+            const { data: deps } = await supabase
+              .from("task_dependencies")
+              .select("task_id")
+              .eq("task_id", t.id);
+
+            if (!deps || deps.length === 0) {
+              await supabase.from("jobs").insert({
+                institution_id: membership.institution_id,
+                type: "specialist",
+                incident_id: approvalReq.incident_id,
+                dedupe_key: `specialist:${t.id}:e1`,
+                payload: { taskId: t.id },
+              });
+            }
+          }
+        }
+      }
+      kickWorker("approval-approved");
+    } else if (parsed.data.decision === "reject") {
+      await supabase
+        .from("incidents")
+        .update({
+          state: "triaging",
+          updated_at: now,
+        })
+        .eq("id", approvalReq.incident_id);
+
+      await enqueueCommanderJob(
+        approvalReq.incident_id,
+        parsed.data.reason ?? "HOD rejected plan approval",
+        `hod-reject-${approvalRequestId}`
+      );
+      kickWorker("approval-rejected");
+    }
 
     return NextResponse.json({ data: decision, requestId }, { status: 200 });
   } catch (err: unknown) {

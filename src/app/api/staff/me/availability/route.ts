@@ -14,6 +14,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createClient } from "@/server/db/client";
 import { updateAvailability } from "@/server/operations/availability";
+import { kickWorker } from "@/server/orchestration/kick";
 import { randomUUID } from "crypto";
 
 const AvailabilitySchema = z.object({
@@ -78,6 +79,8 @@ export async function PATCH(request: NextRequest) {
       membership.institution_id,
       parsed.data
     );
+
+    kickWorker("staff-availability-changed");
 
     return NextResponse.json({ data: result, requestId }, { status: 200 });
   } catch (err: unknown) {
