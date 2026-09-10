@@ -1,5 +1,36 @@
 # ORION — Operating Response & Incident Orchestration Network
 
+## Run locally with continuous background processing
+
+With Node.js 22+ and your configured `.env`, run:
+
+```sh
+npm ci
+npm run local
+```
+
+Open http://localhost:3000. `npm run local` starts the app and an authenticated
+background scheduler. It checks for due jobs immediately and then 10 seconds after
+each completed tick, without overlapping its own requests. Failed connections are
+retried; invalid automation credentials stop the launcher. Ctrl+C stops both processes.
+Use `LOCAL_WORKER_INTERVAL_MS=5000 npm run local` to change the polling delay.
+
+The launcher loads Next.js environment files and sets `APP_URL` to the local URL
+for this process, leaving your private files unchanged. `AUTOMATION_SECRET` must
+contain at least 32 characters. The existing Supabase, Featherless and Resend
+configuration is still required: this runs the web server and scheduler on your
+computer, while those services remain online. Jobs can update the connected database
+and send queued notifications. Local email links open only on this computer;
+public email webhooks cannot reach localhost without a tunnel.
+
+Keep this terminal running and the computer awake. Vercel's `vercel.json` schedule
+is not used locally. `npm run dev` alone does not start the recurring scheduler.
+For production mode locally, run `npm run build` followed by `npm run local:start`.
+
+The downloadable ZIP omits dependencies and generated caches. Installing and
+running the project recreates those folders; compression does not reduce their
+installed size. Source, migrations, tests and assets should be kept.
+
 **ORION** is an autonomous multi-agent campus operations and incident orchestration platform. It transforms unstructured campus complaints (facilities, electrical hazards, IT networks, equipment breakdowns, and confidential grievances) into versioned, dependency-aware resolution plans, assigns verified specialists, dispatches outbox notifications, and guarantees accountable human physical verification before any ticket can be closed.
 
 ---

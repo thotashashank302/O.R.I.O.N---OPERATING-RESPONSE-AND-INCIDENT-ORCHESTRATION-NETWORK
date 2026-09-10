@@ -1,0 +1,21 @@
+.login {
+  color-scheme: dark;
+  accent-color: #c8b38f;
+  caret-color: #dcc9a9;
+}
+
+.login ::selection {
+  background: #c8b38f;
+  color: #211e19;
+}
+
+.login :focus-visible {
+  outline: 2px solid #c8b38f;
+  outline-offset: 3px;
+}
+
+.login input:autofill {
+  -webkit-text-fill-color: #eee6d9;
+  box-shadow: 0 0 0 1000px #22211e inset;
+  caret-color: #dcc9a9;
+}

@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import styles from "./login.module.css";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -44,7 +45,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen w-full flex flex-col md:flex-row bg-[#07101c] text-white antialiased selection:bg-cyan-300 selection:text-[#07101c]">
+    <div className={`${styles.login} min-h-screen w-full flex flex-col md:flex-row bg-[#191816] text-white antialiased`}>
       <div className="relative min-h-[42vh] md:min-h-screen md:w-[58%] flex flex-col justify-between p-7 sm:p-10 lg:p-14 overflow-hidden">
         <Image
           src="/images/orion-campus-login.webp"
@@ -58,7 +59,7 @@ export default function LoginPage() {
 
         <div className="relative z-10 flex items-center gap-3">
           <span className="grid h-6 w-6 place-items-center border border-white/35 bg-black/20">
-            <span className="h-1.5 w-1.5 rounded-full bg-[#63b5d7]" />
+            <span className="h-1.5 w-1.5 rounded-full bg-[#c8b38f]" />
           </span>
           <span className="text-[13px] tracking-[.19em] text-white uppercase font-semibold">ORION</span>
           <span className="text-[10px] tracking-[.18em] text-white/58 uppercase">Campus Operations</span>
@@ -76,16 +77,16 @@ export default function LoginPage() {
         </div>
       </div>
 
-      <div className="md:w-[42%] flex flex-col justify-between p-7 sm:p-10 lg:p-14 bg-[#07101c]">
+      <div className="md:w-[42%] flex flex-col justify-between p-7 sm:p-10 lg:p-14 bg-[#191816]">
         <div className="max-w-md w-full mx-auto my-auto py-8">
-          <div className="text-[10px] font-medium tracking-[.18em] text-[#79bad4] uppercase mb-5">
+          <div className="text-[10px] font-medium tracking-[.18em] text-[#c8b38f] uppercase mb-5">
             AUTHORIZED PERSONNEL
           </div>
 
           <h2 className="font-[Georgia] text-3xl md:text-[2.15rem] font-normal text-white tracking-[-.025em] mb-2">
             Sign in to ORION
           </h2>
-          <p className="text-sm text-slate-400 mb-9">
+          <p className="text-sm text-[#b4aea3] mb-9">
             Use your institutional credentials to continue.
           </p>
 
@@ -98,7 +99,7 @@ export default function LoginPage() {
 
           <form onSubmit={handleLogin} className="space-y-5">
             <div>
-              <label className="block text-xs font-medium text-slate-300 mb-2">
+              <label className="block text-xs font-medium text-[#d8d1c5] mb-2">
                 Email
               </label>
               <input
@@ -107,18 +108,18 @@ export default function LoginPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="name@university.edu"
-                className="w-full px-4 py-3.5 rounded-md bg-[#0a1422] border border-slate-700/70 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-[#63b5d7] focus:ring-1 focus:ring-[#63b5d7] transition-all"
+                className="w-full px-4 py-3.5 rounded-md bg-[#22211e] border border-[#575147] text-sm text-white placeholder-[#a69f93] focus:outline-none focus:border-[#c8b38f] focus:ring-1 focus:ring-[#c8b38f] transition-all"
               />
             </div>
 
             <div>
               <div className="flex items-center justify-between mb-2">
-                <label className="block text-xs font-medium text-slate-300">
+                <label className="block text-xs font-medium text-[#d8d1c5]">
                   Password
                 </label>
                 <a
                   href="#forgot"
-                  className="text-xs text-slate-400 hover:text-cyan-400 transition-colors"
+                  className="text-xs text-[#b4aea3] hover:text-[#c8b38f] transition-colors"
                 >
                   Forgot password?
                 </a>
@@ -130,12 +131,12 @@ export default function LoginPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••••••"
-                  className="w-full px-4 py-3.5 pr-10 rounded-md bg-[#0a1422] border border-slate-700/70 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-[#63b5d7] focus:ring-1 focus:ring-[#63b5d7] transition-all"
+                  className="w-full px-4 py-3.5 pr-10 rounded-md bg-[#22211e] border border-[#575147] text-sm text-white placeholder-[#a69f93] focus:outline-none focus:border-[#c8b38f] focus:ring-1 focus:ring-[#c8b38f] transition-all"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[#b4aea3] hover:text-[#eee6d9]"
                 >
                   {showPassword ? (
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -152,12 +153,12 @@ export default function LoginPage() {
             </div>
 
             <div className="flex items-center justify-between text-xs">
-              <label className="flex items-center gap-2 text-slate-300 cursor-pointer">
+              <label className="flex items-center gap-2 text-[#d8d1c5] cursor-pointer">
                 <input
                   type="checkbox"
                   checked={keepSignedIn}
                   onChange={(e) => setKeepSignedIn(e.target.checked)}
-                  className="rounded border-slate-700 bg-slate-900 text-cyan-500 focus:ring-cyan-500"
+                  className="rounded border-[#575147] bg-[#22211e] text-[#c8b38f] accent-[#c8b38f] focus:ring-[#c8b38f]"
                 />
                 Keep me signed in on this device
               </label>
@@ -166,7 +167,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3.5 px-4 rounded-md bg-[#63b5d7] hover:bg-[#75c3e1] text-[#06101c] font-semibold text-sm flex items-center justify-center gap-2 shadow-[0_12px_30px_rgba(35,113,147,.2)] transition-all disabled:opacity-50"
+              className="w-full py-3.5 px-4 rounded-md bg-[#c8b38f] hover:bg-[#dcc9a9] text-[#211e19] font-semibold text-sm flex items-center justify-center gap-2 shadow-[0_12px_30px_rgba(0,0,0,.18)] transition-all disabled:opacity-50"
             >
               {loading ? "Authenticating..." : "Continue →"}
             </button>
@@ -174,11 +175,11 @@ export default function LoginPage() {
           </form>
 
           {/* Student Roster Claim Link */}
-          <div className="mt-8 text-center text-xs text-slate-400">
+          <div className="mt-8 text-center text-xs text-[#b4aea3]">
             Are you a student with a college roll number?{" "}
             <Link
               href="/register"
-              className="text-cyan-400 hover:text-cyan-300 font-medium underline underline-offset-4 ml-1"
+              className="text-[#c8b38f] hover:text-[#e0ceb0] font-medium underline underline-offset-4 ml-1"
             >
               Claim Roster Membership →
             </Link>
@@ -186,11 +187,11 @@ export default function LoginPage() {
         </div>
 
         {/* Footer */}
-        <div className="max-w-md w-full mx-auto flex items-center justify-between text-xs text-slate-500 border-t border-slate-850 pt-4">
+        <div className="max-w-md w-full mx-auto flex items-center justify-between text-xs text-[#a69f93] border-t border-[#423e37] pt-4">
           <span>© 2026 ORION Systems</span>
           <div className="flex items-center gap-4">
-            <a href="#privacy" className="hover:text-slate-400">Privacy</a>
-            <a href="#status" className="hover:text-slate-400">Status</a>
+            <a href="#privacy" className="hover:text-[#b4aea3]">Privacy</a>
+            <a href="#status" className="hover:text-[#b4aea3]">Status</a>
           </div>
         </div>
       </div>
