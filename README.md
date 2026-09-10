@@ -2,6 +2,18 @@
 
 ## Run locally with continuous background processing
 
+For day-to-day local use, run `npm run build` once, then `npm run local:start`.
+Rebuild after changing source. This avoids development compilation while using the
+application. Use `npm run local` when actively editing code.
+
+Password recovery is available at `/forgot-password`. In Supabase Auth URL
+Configuration, allow your application callback URL (for local use,
+`http://localhost:3000/auth/callback?next=/reset-password`) and configure a working
+Auth email sender. Recovery links must be opened in the browser that requested
+them. The callback exchanges the recovery code before opening `/reset-password`.
+See [Supabase password recovery](https://supabase.com/docs/reference/javascript/auth-resetpasswordforemail).
+
+
 With Node.js 22+ and your configured `.env`, run:
 
 ```sh

@@ -60,7 +60,7 @@ export default function StudentDashboardPage() {
   return (
     <div className="space-y-6 px-4 py-8 sm:px-8">
       {/* Top Banner — warm institutional style */}
-      <div className="flex items-center justify-between gap-4 rounded-2xl border border-stone-200 bg-white/80 p-6">
+      <div className="flex flex-col items-start sm:flex-row sm:items-center justify-between gap-4 rounded-2xl border border-stone-200 bg-white/80 p-6">
         <div>
           <span className="text-[10px] font-mono font-semibold uppercase tracking-widest text-cyan-700">
             Student Incident Portal

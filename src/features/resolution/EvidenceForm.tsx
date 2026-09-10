@@ -13,7 +13,8 @@
  * Internal issues require functional test information.
  */
 
-import { useState, useTransition } from "react";
+import { useId, useState, useTransition } from "react";
+import { orionContextHeaders, useActiveContext } from "@/features/identity/use-active-context";
 import type { EvidenceKind, Task } from "@/contracts/operations";
 
 interface EvidenceFormProps {
@@ -42,6 +43,36 @@ export function EvidenceForm({
   const [notes, setNotes] = useState("");
   const [testResult, setTestResult] = useState("");
   const [photoKey, setPhotoKey] = useState("");
+  const [photoName, setPhotoName] = useState("");
+  const [uploading, setUploading] = useState(false);
+  const photoId = useId();
+  const { activeContext } = useActiveContext();
+
+  async function uploadPhoto(file: File) {
+    setError(null);
+    setPhotoKey("");
+    setPhotoName("");
+    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type) || file.size > 5 * 1024 * 1024 || !file.size) {
+      setError("Choose a JPEG, PNG or WebP photo, up to 5 MB.");
+      return;
+    }
+    if (!activeContext) { setError("Your workspace is still loading. Please try again."); return; }
+    setUploading(true);
+    try {
+      const response = await fetch("/api/uploads", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...orionContextHeaders(activeContext) },
+        body: JSON.stringify({ fileName: file.name, fileSize: file.size, mimeType: file.type }),
+      });
+      const ticket = await response.json();
+      if (!response.ok || !ticket.data) throw new Error(ticket.error?.message ?? "Photo upload could not be authorized.");
+      const upload = await fetch(ticket.data.uploadUrl, { method: "PUT", headers: { "Content-Type": file.type }, body: file });
+      if (!upload.ok) throw new Error("Photo upload failed. Please select the photo again.");
+      setPhotoKey(ticket.data.storageKey);
+      setPhotoName(file.name);
+    } catch (reason) { setError(reason instanceof Error ? reason.message : "Photo upload failed."); }
+    finally { setUploading(false); }
+  }
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -74,6 +105,7 @@ export function EvidenceForm({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (uploading) return;
     setError(null);
     setSuccessMsg(null);
 
@@ -127,6 +159,7 @@ export function EvidenceForm({
         setNotes("");
         setTestResult("");
         setPhotoKey("");
+        setPhotoName("");
         onSuccess?.();
       } catch (err: unknown) {
         setError(err instanceof Error ? err.message : "Submission failed");
@@ -197,22 +230,14 @@ export function EvidenceForm({
         />
       </div>
 
-      {/* Private Photo Reference */}
       <div>
-        <label className="mb-1.5 block text-sm font-medium text-slate-300">
-          Photo Evidence Key
-          <span className="ml-2 text-xs text-slate-500">(optional — from upload service)</span>
-        </label>
-        <input
-          type="text"
-          value={photoKey}
-          onChange={(e) => setPhotoKey(e.target.value)}
-          placeholder="private-storage-key from upload service"
-          className="w-full rounded-xl border border-slate-700 bg-slate-900 px-4 py-3 text-sm text-slate-200 placeholder-slate-600 transition-colors focus:border-cyan-500/50 focus:outline-none focus:ring-1 focus:ring-cyan-500/30"
-        />
-        <p className="mt-1 text-xs text-slate-500">
-          Photos are private evidence for human reviewers only. The AI model does not process images.
-        </p>
+        <label htmlFor={photoId} className="mb-1.5 block text-sm font-medium text-slate-300">Photo evidence (optional)</label>
+        <input id={photoId} type="file" accept="image/jpeg,image/png,image/webp" disabled={uploading || isPending || !activeContext}
+          onChange={event => { const file = event.target.files?.[0]; event.target.value = ""; if (file) void uploadPhoto(file); }}
+          className="block w-full min-w-0 rounded-lg border border-slate-600 bg-slate-900 p-3 text-sm text-slate-200 file:mr-3 file:rounded file:border-0 file:bg-stone-200 file:px-3 file:py-2 file:text-stone-800" />
+        <p className="mt-2 text-xs text-slate-300">JPEG, PNG or WebP, up to 5 MB. Stored privately for human review.</p>
+        {uploading && <p role="status" className="mt-2 text-sm text-slate-200">Uploading photo…</p>}
+        {photoKey && <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-slate-200"><span className="break-all">{photoName} — ready to attach</span><button type="button" disabled={isPending} className="underline" onClick={() => { setPhotoKey(""); setPhotoName(""); }}>Remove photo</button></div>}
       </div>
 
       {/* Physical category warning */}
@@ -238,7 +263,7 @@ export function EvidenceForm({
 
       <button
         type="submit"
-        disabled={isPending}
+        disabled={isPending || uploading}
         className="w-full rounded-xl border border-cyan-500/30 bg-cyan-500/10 py-3 text-sm font-semibold text-cyan-300 transition-all hover:bg-cyan-500/20 disabled:cursor-not-allowed disabled:opacity-50"
       >
         {isPending ? "Submitting…" : "Submit for Verification"}

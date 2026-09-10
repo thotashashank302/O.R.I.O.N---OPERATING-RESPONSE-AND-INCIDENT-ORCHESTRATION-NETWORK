@@ -5,7 +5,8 @@ export async function POST() {
   const requestId = crypto.randomUUID();
   try {
     const supabase = await createSupabaseSessionClient();
-    await supabase.auth.signOut();
+    const { error } = await supabase.auth.signOut({ scope: "local" });
+    if (error) throw error;
     return NextResponse.json({ data: { signedOut: true }, requestId });
   } catch (error) {
     console.error(`[POST /api/auth/logout] requestId=${requestId}`, error instanceof Error ? error.message : error);

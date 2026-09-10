@@ -114,11 +114,13 @@ export function AvailabilityControl({
   initialState,
   initialVersion,
 }: AvailabilityControlProps) {
-  const [version, setVersion] = useState(initialVersion);
+  const [saved, setSaved] = useState({ state: initialState, version: initialVersion });
+  const latest = initialVersion > saved.version ? { state: initialState, version: initialVersion } : saved;
+  const version = latest.version;
   const [error, setError] = useState<string | null>(null);
   const [openTasks, setOpenTasks] = useState<Assignment[] | null>(null);
   const [pendingState, setPendingState] = useState<AvailabilityState | null>(null);
-  const [optimisticState, setOptimisticState] = useOptimistic(initialState);
+  const [optimisticState, setOptimisticState] = useOptimistic(latest.state);
   const [isPending, startTransition] = useTransition();
 
   async function handleChange(newState: AvailabilityState, choice?: "keep" | "handover") {
@@ -143,7 +145,7 @@ export function AvailabilityControl({
 
         if (res.status === 409 && json.error?.code === "HAS_OPEN_TASKS") {
           // Roll back optimistic update, show modal
-          setOptimisticState(initialState);
+          setOptimisticState(latest.state);
           setPendingState(newState);
           setOpenTasks(json.error.open_tasks ?? []);
           return;
@@ -151,15 +153,15 @@ export function AvailabilityControl({
 
         if (!res.ok) {
           // Roll back on any other error
-          setOptimisticState(initialState);
+          setOptimisticState(latest.state);
           setError(json.error?.message ?? "Failed to update availability");
           return;
         }
 
         // Success — update local version for next optimistic lock
-        setVersion(json.data.capability_version);
+        setSaved({ state: json.data.new_state, version: json.data.capability_version });
       } catch {
-        setOptimisticState(initialState);
+        setOptimisticState(latest.state);
         setError("Network error — please try again");
       }
     });

@@ -1,3 +1,5 @@
+import { z } from "zod";
+import { AuthorizationError } from "@/server/auth/authorization";
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseAdmin } from "@/server/db/supabase-admin";
 import { requireRequestContext } from "@/server/auth/request-context";
@@ -5,7 +7,7 @@ import { requireRequestContext } from "@/server/auth/request-context";
 export async function GET(req: NextRequest) {
   const requestId = crypto.randomUUID();
   try {
-    const context = await requireRequestContext(req);
+    const context = await requireRequestContext(req, ["principal", "admin", "hod"]);
     const db = createSupabaseAdmin();
 
     const [membersRes, grantsRes, usersRes] = await Promise.all([
@@ -14,6 +16,9 @@ export async function GET(req: NextRequest) {
       db.auth.admin.listUsers(),
     ]);
 
+    for (const result of [membersRes, grantsRes, usersRes]) {
+      if (result.error) throw result.error;
+    }
     const userMap = new Map((usersRes.data?.users ?? []).map((u) => [u.id, u]));
     const grantsMap = new Map<string, string[]>();
     for (const g of grantsRes.data ?? []) {
@@ -37,9 +42,10 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({ data: members, requestId }, { status: 200 });
   } catch (err: unknown) {
+    const status = err instanceof z.ZodError ? 422 : err instanceof AuthorizationError ? 403 : 500;
     return NextResponse.json(
       { error: { code: "SERVER_ERROR", message: err instanceof Error ? err.message : "Failed to list members" }, requestId },
-      { status: 500 }
+      { status }
     );
   }
 }

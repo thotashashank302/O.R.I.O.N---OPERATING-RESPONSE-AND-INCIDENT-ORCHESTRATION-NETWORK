@@ -1,10 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+
 
 export function SignOutButton() {
-  const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -22,7 +21,7 @@ export function SignOutButton() {
             if (!response.ok) throw new Error("Sign-out failed. Please try again.");
             window.localStorage.removeItem("orion.active-membership-id");
             document.cookie = "orion-membership=; Path=/; Max-Age=0; SameSite=Lax";
-            router.push("/login");
+            window.location.replace("/login");
           } catch (signOutError) {
             setError(signOutError instanceof Error ? signOutError.message : "Sign-out failed. Please try again.");
           } finally {

@@ -25,32 +25,40 @@ export function MembershipList({
   onToggleStatus,
   onOpenRoleModal,
 }: MembershipListProps) {
-  const { activeContext } = useActiveContext();
+  const { activeContext, error: contextError } = useActiveContext();
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(!initialMembers);
+  const [retry, setRetry] = useState(0);
   const [members, setMembers] = useState<MemberItem[]>(initialMembers ?? []);
   const [search, setSearch] = useState("");
   const [actionError, setActionError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (initialMembers) return;
+    if (initialMembers || !activeContext) return;
     let cancelled = false;
     async function loadMembers() {
+      setLoading(true);
+      setLoadError(null);
       try {
         const res = await fetch("/api/memberships", {
           headers: activeContext ? orionContextHeaders(activeContext) : {},
         });
         const json = await res.json();
+        if (!res.ok) throw new Error(json.error?.message ?? "Unable to load members");
         if (!cancelled && json.data) {
           setMembers(json.data);
         }
       } catch (err) {
-        console.error("Failed to load members:", err);
+        if (!cancelled) setLoadError(err instanceof Error ? err.message : "Unable to load members");
+      } finally {
+        if (!cancelled) setLoading(false);
       }
     }
     loadMembers();
     return () => {
       cancelled = true;
     };
-  }, [initialMembers, activeContext]);
+  }, [initialMembers, activeContext, retry]);
 
   const handleToggle = async (id: string, currentStatus: "active" | "inactive") => {
     const nextStatus = currentStatus === "active" ? "inactive" : "active";
@@ -91,6 +99,8 @@ export function MembershipList({
 
   return (
     <div className="rounded-2xl border border-slate-800/80 bg-slate-900/60 backdrop-blur-xl overflow-hidden shadow-xl">
+      {(loadError || contextError) && <div role="alert" className="p-4 text-sm text-red-700">{loadError || contextError} <button type="button" className="underline" onClick={() => setRetry(retry + 1)}>Retry</button></div>}
+      {loading && !contextError && <p role="status" className="p-4 text-sm text-stone-600">Loading members…</p>}
       {actionError ? <p role="alert" className="m-4 rounded-lg border border-red-700 bg-red-950/60 p-3 text-xs text-red-200">{actionError}</p> : null}
       <div className="p-5 border-b border-slate-800/80 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -105,7 +115,7 @@ export function MembershipList({
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search member, email, roll..."
-            className="px-3.5 py-1.5 rounded-lg bg-slate-950/80 border border-slate-800 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-cyan-500 w-64"
+            className="px-3.5 py-1.5 rounded-lg bg-slate-950/80 border border-slate-800 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-cyan-500 w-full sm:w-64"
           />
         </div>
       </div>

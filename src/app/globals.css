@@ -120,8 +120,8 @@ button, input, select, textarea { font: inherit; }
 
 /* ───── Responsive ───── */
 @media (max-width: 860px) {
-  .orion-dashboard { grid-template-columns: 1fr; }
-  .orion-sidebar { position: static; height: auto; padding: 18px; border-right: 0; border-bottom: 1px solid var(--orion-line); }
+  .orion-dashboard { grid-template-columns: minmax(0, 1fr); }
+  .orion-sidebar { min-width: 0; position: static; height: auto; padding: 18px; border-right: 0; border-bottom: 1px solid var(--orion-line); }
   .orion-role-block, .orion-system-note { display: none; }
   .orion-nav { margin-top: 16px; display: flex; overflow-x: auto; padding-bottom: 2px; }
   .orion-nav a { white-space: nowrap; }

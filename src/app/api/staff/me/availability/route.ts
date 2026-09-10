@@ -93,7 +93,7 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json(
         {
           error: {
-            code: "HAS_OPEN_TASKS",
+            code: openTasks ? "HAS_OPEN_TASKS" : "VERSION_CONFLICT",
             message,
             open_tasks: openTasks ?? [],
           },

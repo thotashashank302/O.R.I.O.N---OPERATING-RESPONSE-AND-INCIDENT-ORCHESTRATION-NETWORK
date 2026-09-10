@@ -118,7 +118,7 @@ export default function LoginPage() {
                   Password
                 </label>
                 <a
-                  href="#forgot"
+                  href="/forgot-password"
                   className="text-xs text-[#b4aea3] hover:text-[#c8b38f] transition-colors"
                 >
                   Forgot password?
@@ -190,8 +190,7 @@ export default function LoginPage() {
         <div className="max-w-md w-full mx-auto flex items-center justify-between text-xs text-[#a69f93] border-t border-[#423e37] pt-4">
           <span>© 2026 ORION Systems</span>
           <div className="flex items-center gap-4">
-            <a href="#privacy" className="hover:text-[#b4aea3]">Privacy</a>
-            <a href="#status" className="hover:text-[#b4aea3]">Status</a>
+
           </div>
         </div>
       </div>
