@@ -1,7 +1,8 @@
+import { throwPersistenceError, WorkflowPersistenceError } from "./persistence-errors";
 import { randomUUID } from "node:crypto";
 import type { AuthorizedContext, IncidentState } from "@/contracts/domain";
-import type { Json, TablesInsert } from "@/contracts/database";
-import { CreateIncidentSchema, type CreateIncidentInput } from "@/contracts/reporting";
+import type { Json } from "@/contracts/database";
+import { PersistentCreateIncidentSchema, type CreateIncidentInput } from "@/contracts/reporting";
 import { runTriageAgent } from "@/server/agents/triage";
 import { createSupabaseAdmin } from "@/server/db/supabase-admin";
 import { enqueueCommanderJob } from "@/server/orchestration/commander-enqueue";
@@ -21,6 +22,7 @@ interface IncidentRow {
   state: IncidentState;
   version: number;
   triage_summary: string | null;
+  replan_job?: { id: string } | null;
   clarification_request: { question: string; missingFields: string[] } | null;
   created_at: string;
   updated_at: string;
@@ -60,23 +62,24 @@ function canRead(row: IncidentRow, context: AuthorizedContext): boolean {
 
 async function voteFacts(incidentId: string, membershipId: string) {
   const db = createSupabaseAdmin();
-  const [{ count }, { data }] = await Promise.all([
+  const [{ count, error: countError }, { data, error: voteError }] = await Promise.all([
     db.from("incident_votes").select("incident_id", { count: "exact", head: true }).eq("incident_id", incidentId),
     db.from("incident_votes").select("incident_id").eq("incident_id", incidentId).eq("membership_id", membershipId).maybeSingle(),
   ]);
+  if (countError || voteError) throwReadUnavailable();
   return { voteCount: count ?? 0, hasVoted: Boolean(data) };
 }
 
-export async function createPersistentIncident(context: AuthorizedContext, input: CreateIncidentInput) {
-  const validated = CreateIncidentSchema.parse({ ...input, institutionId: context.institutionId });
-  const db = createSupabaseAdmin();
-  const since = new Date(Date.now() - 60 * 60 * 1000).toISOString();
-  const { count } = await db.from("incidents").select("id", { count: "exact", head: true })
-    .eq("reporter_membership_id", context.membershipId).gte("created_at", since);
-  if (!validated.isConfidential && (count ?? 0) >= 5) throw new Error("Rate limit exceeded: Maximum 5 normal reports per hour allowed.");
+function throwReadUnavailable(): never {
+  throw new WorkflowPersistenceError("READ_UNAVAILABLE", "Incident data is temporarily unavailable. Please retry.", 503);
+}
 
-  const { data: locations } = await db.from("campus_locations")
+export async function createPersistentIncident(context: AuthorizedContext, input: CreateIncidentInput) {
+  const validated = PersistentCreateIncidentSchema.parse({ ...input, institutionId: context.institutionId });
+  const db = createSupabaseAdmin();
+  const { data: locations, error: locationsError } = await db.from("campus_locations")
     .select("id,label,kind").eq("institution_id", context.institutionId).limit(200);
+  if (locationsError) throw locationsError;
   const incidentId = randomUUID();
   const { result: triage, log } = await runTriageAgent({
     incidentId,
@@ -109,38 +112,26 @@ export async function createPersistentIncident(context: AuthorizedContext, input
     created_at: now,
     updated_at: now,
   };
-  const { error } = await db.from("incidents").insert(row as unknown as TablesInsert<"incidents">);
-  if (error) throw error;
-  if (validated.attachments.length > 0) {
-    const { error: attachmentError } = await db.from("incident_attachments").insert(validated.attachments.map((item) => ({
-      institution_id: context.institutionId,
-      incident_id: incidentId,
-      uploader_membership_id: context.membershipId,
-      storage_key: item.storageKey,
-      file_name: item.fileName,
-      file_size: item.fileSize,
-      mime_type: item.mimeType,
-    })));
-    if (attachmentError) throw attachmentError;
-  }
-  await db.from("agent_runs").insert({
-    id: randomUUID(), institution_id: context.institutionId, incident_id: incidentId, agent_name: "triage",
-    provider: log.provider, model: log.model, prompt_version: log.promptVersion, latency_ms: log.latencyMs,
-    status: log.status === "failed" ? "failed" : "succeeded", validated_outcome: triage as unknown as Json, safe_error: log.error ?? null,
+  const { data, error } = await db.rpc("orion_create_incident", {
+    tenant_id: context.institutionId, actor_id: context.membershipId,
+    operation_id: validated.operationId, request_payload: validated as unknown as Json,
+    incident_payload: row as unknown as Json,
+    agent_payload: {
+      id: randomUUID(), provider: log.provider, model: log.model, prompt_version: log.promptVersion,
+      latency_ms: log.latencyMs, status: log.status === "failed" ? "failed" : "succeeded",
+      validated_outcome: triage, safe_error: log.error ?? null,
+    } as unknown as Json,
   });
-  await db.from("incident_events").insert({
-    institution_id: context.institutionId, incident_id: incidentId, actor_membership_id: context.membershipId,
-    actor_type: "human", action: "incident_reported", safe_payload: { category: row.category, state: row.state },
-  });
-  const job = row.state === "triaging" ? await enqueueCommanderJob(row.id) : null;
-  return { incident: project(row), job, rateLimitRemaining: Math.max(0, 4 - (count ?? 0)) };
+  if (error) throwPersistenceError(error);
+  const result = data as unknown as { incident: IncidentRow; job: { id: string } | null; rateLimitRemaining: number };
+  return { ...result, incident: project(result.incident) };
 }
 
 export async function listPersistentIncidents(context: AuthorizedContext) {
   const db = createSupabaseAdmin();
   const { data, error } = await db.from("incidents").select("*")
     .eq("institution_id", context.institutionId).order("created_at", { ascending: false }).limit(100);
-  if (error) throw error;
+  if (error) throwReadUnavailable();
   const readable = (data as IncidentRow[]).filter((row) => canRead(row, context));
   return Promise.all(readable.map(async (row) => {
     const facts = await voteFacts(row.id, context.membershipId);
@@ -150,7 +141,8 @@ export async function listPersistentIncidents(context: AuthorizedContext) {
 
 export async function getPersistentIncident(context: AuthorizedContext, incidentId: string) {
   const { data, error } = await createSupabaseAdmin().from("incidents").select("*").eq("id", incidentId).maybeSingle();
-  if (error || !data || !canRead(data as IncidentRow, context)) return null;
+  if (error) throwReadUnavailable();
+  if (!data || !canRead(data as IncidentRow, context)) return null;
   const facts = await voteFacts(incidentId, context.membershipId);
   return project(data as IncidentRow, facts.voteCount, facts.hasVoted);
 }
@@ -202,80 +194,11 @@ export async function confirmPersistentIncident(
 
   const db = createSupabaseAdmin();
 
-  let row: IncidentRow;
-  try {
-    const { data, error } = await db.rpc("orion_confirm_incident", {
-      target_id: incidentId, actor_id: context.membershipId, expected_version: expectedVersion, decision, reason,
-    });
-    if (error) throw error;
-    row = data as unknown as IncidentRow;
-  } catch {
-    // Resilient TypeScript implementation when RPC is missing
-    const { data: plan } = await db.from("incident_plans")
-      .select("id, version")
-      .eq("incident_id", incidentId)
-      .eq("status", "active")
-      .maybeSingle();
-
-    if (plan) {
-      const { data: submittedTasks } = await db.from("incident_tasks")
-        .select("id, evidence_version, state")
-        .eq("plan_id", plan.id)
-        .eq("state", "submitted");
-
-      for (const t of submittedTasks ?? []) {
-        await db.from("verification_records").insert({
-          institution_id: context.institutionId,
-          task_id: t.id,
-          evidence_version: t.evidence_version,
-          human_result: decision === "accepted" ? "pass" : "fail",
-          agent_verdict: "needs_human_review",
-          reasons: { humanReason: reason } as unknown as Json,
-        });
-
-        await db.from("incident_tasks").update({
-          state: decision === "accepted" ? "verified" : "failed",
-          updated_at: new Date().toISOString(),
-        }).eq("id", t.id);
-
-        await db.from("assignments").update({
-          active_version: false,
-          updated_at: new Date().toISOString(),
-        }).eq("task_id", t.id).eq("state", "completed");
-      }
-    }
-
-    const nextState = decision === "rejected" ? "reopened" : "resolved";
-    const nextVersion = expectedVersion + 1;
-    const now = new Date().toISOString();
-
-    const { data: updatedIncident, error: incErr } = await db.from("incidents").update({
-      state: nextState,
-      version: nextVersion,
-      resolved_at: nextState === "resolved" ? now : null,
-      reopened_at: nextState === "reopened" ? now : undefined,
-      updated_at: now,
-    }).eq("id", incidentId).select("*").single();
-    if (incErr || !updatedIncident) throw new Error(incErr?.message ?? "Failed to update incident state");
-
-    if (plan && nextState === "resolved") {
-      await db.from("incident_plans").update({ status: "completed" }).eq("id", plan.id);
-    }
-
-    await db.from("incident_events").insert({
-      institution_id: context.institutionId,
-      incident_id: incidentId,
-      actor_membership_id: context.membershipId,
-      actor_type: "human",
-      action: `reporter_${decision}`,
-      safe_payload: { reason, state: nextState } as unknown as Json,
-    });
-
-    row = updatedIncident as unknown as IncidentRow;
-  }
-
-  const job = decision === "rejected"
-    ? await enqueueCommanderJob(incidentId, reason, `reporter-rejected-${row.version}`)
-    : null;
-  return { incident: project(row), verification: { decision, reason }, job };
+  const { data, error } = await db.rpc("orion_confirm_incident", {
+    target_id: incidentId, actor_id: context.membershipId, expected_version: expectedVersion, decision, reason,
+  });
+  if (error) throwPersistenceError(error);
+  const row = data as unknown as IncidentRow;
+  // The RPC records the decision and its durable replan request together.
+  return { incident: project(row), verification: { decision, reason }, job: row.replan_job ?? null };
 }

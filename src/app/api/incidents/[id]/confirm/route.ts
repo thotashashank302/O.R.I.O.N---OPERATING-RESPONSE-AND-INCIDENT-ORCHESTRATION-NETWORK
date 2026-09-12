@@ -1,9 +1,10 @@
+import { workflowFailure } from '@/server/reporting/persistence-errors';
 import { kickWorker } from "@/server/orchestration/kick";
 export const maxDuration = 300;
 import { NextRequest } from 'next/server';
 import { jsonSuccess, jsonError } from '@/server/http-envelope';
 import { ReporterConfirmationSchema } from '@/contracts/reporting';
-import { requireRequestContext } from '@/server/auth/request-context';
+import { requireRequestContext, authorizationFailure } from '@/server/auth/request-context';
 import { confirmPersistentIncident } from '@/server/reporting/persistent-service';
 
 export async function POST(
@@ -39,6 +40,10 @@ export async function POST(
       replanJob: result.job,
     });
   } catch (err: unknown) {
+    const authFailure = authorizationFailure(err);
+    if (authFailure) return authFailure;
+    const persistenceFailure = workflowFailure(err);
+    if (persistenceFailure) return persistenceFailure;
     const message = err instanceof Error ? err.message : 'Error confirming incident resolution';
     if (message.includes('Version mismatch') || message.includes('409 Conflict')) {
       return jsonError('CONFLICT', message, 409);

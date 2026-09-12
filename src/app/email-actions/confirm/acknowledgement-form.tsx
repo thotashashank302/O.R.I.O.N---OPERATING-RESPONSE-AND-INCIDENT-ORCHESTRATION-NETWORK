@@ -9,19 +9,24 @@ export function AcknowledgementForm({ token }: { token: string }) {
   async function acknowledge() {
     setState("submitting");
     setMessage("Checking your identity and the current assignment version…");
-    const response = await fetch("/api/email-actions/acknowledge", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ token }),
-    });
-    const payload = await response.json();
-    if (!response.ok) {
+    try {
+      const response = await fetch("/api/email-actions/acknowledge", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ token }),
+      });
+      const payload = await response.json();
+      if (!response.ok) {
+        setState("error");
+        setMessage(payload?.error?.message ?? "This action could not be completed.");
+        return;
+      }
+      setState("done");
+      setMessage("Assignment acknowledged. Open ORION to review the authorized task details.");
+    } catch {
       setState("error");
-      setMessage(payload?.error?.message ?? "This action could not be completed.");
-      return;
+      setMessage("Unable to confirm the response. Check your connection and retry, or open your work queue to check the assignment.");
     }
-    setState("done");
-    setMessage("Assignment acknowledged. Open ORION to review the authorized task details.");
   }
 
   return (

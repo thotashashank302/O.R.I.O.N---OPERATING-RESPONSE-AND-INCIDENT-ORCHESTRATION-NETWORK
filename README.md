@@ -1,224 +1,116 @@
-# ORION — Operating Response & Incident Orchestration Network
+# ORION
 
-## Run locally with continuous background processing
+Operating Response & Incident Orchestration Network: a campus incident application
+built with Next.js, Supabase, Featherless AI and Resend.
 
-For day-to-day local use, run `npm run build` once, then `npm run local:start`.
-Rebuild after changing source. This avoids development compilation while using the
-application. Use `npm run local` when actively editing code.
+## Start here
 
-Password recovery is available at `/forgot-password`. In Supabase Auth URL
-Configuration, allow your application callback URL (for local use,
-`http://localhost:3000/auth/callback?next=/reset-password`) and configure a working
-Auth email sender. Recovery links must be opened in the browser that requested
-them. The callback exchanges the recovery code before opening `/reset-password`.
-See [Supabase password recovery](https://supabase.com/docs/reference/javascript/auth-resetpasswordforemail).
-
-
-With Node.js 22+ and your configured `.env`, run:
+Requires Node.js 22+ and npm. From the repository root:
 
 ```sh
 npm ci
-npm run local
+cp .env.example .env # first setup only; keep an existing configured .env
 ```
 
-Open http://localhost:3000. `npm run local` starts the app and an authenticated
-background scheduler. It checks for due jobs immediately and then 10 seconds after
-each completed tick, without overlapping its own requests. Failed connections are
-retried; invalid automation credentials stop the launcher. Ctrl+C stops both processes.
-Use `LOCAL_WORKER_INTERVAL_MS=5000 npm run local` to change the polling delay.
+Fill in the provider credentials in `.env`. Use `APP_URL=http://localhost:3000`
+for local use; `AUTOMATION_SECRET` must contain at least 32 characters.
 
-The launcher loads Next.js environment files and sets `APP_URL` to the local URL
-for this process, leaving your private files unchanged. `AUTOMATION_SECRET` must
-contain at least 32 characters. The existing Supabase, Featherless and Resend
-configuration is still required: this runs the web server and scheduler on your
-computer, while those services remain online. Jobs can update the connected database
-and send queued notifications. Local email links open only on this computer;
-public email webhooks cannot reach localhost without a tunnel.
-
-Keep this terminal running and the computer awake. Vercel's `vercel.json` schedule
-is not used locally. `npm run dev` alone does not start the recurring scheduler.
-For production mode locally, run `npm run build` followed by `npm run local:start`.
-
-The downloadable ZIP omits dependencies and generated caches. Installing and
-running the project recreates those folders; compression does not reduce their
-installed size. Source, migrations, tests and assets should be kept.
-
-**ORION** is an autonomous multi-agent campus operations and incident orchestration platform. It transforms unstructured campus complaints (facilities, electrical hazards, IT networks, equipment breakdowns, and confidential grievances) into versioned, dependency-aware resolution plans, assigns verified specialists, dispatches outbox notifications, and guarantees accountable human physical verification before any ticket can be closed.
-
----
-
-## 🌐 Live Deployment & Demo Access
-
-- **Live Production URL**: [https://orion-incident-orchestration-git-shashank-1-shadow-monarch1.vercel.app](https://orion-incident-orchestration-git-shashank-1-shadow-monarch1.vercel.app)
-- **Local URL**: [http://localhost:3000](http://localhost:3000)
-- **Universal Demo Password**: `OrionDemo2026!`
-- **Verified Email Recipients**: `lokinindi.shivani@gmail.com`, `thotashashank302@gmail.com`
-
----
-
-## 🚀 Demo Accounts & Role Matrix
-
-The controlled demo college (**ORION-DEMO / ORION Controlled Demo College**) is seeded with dedicated credentials for every institutional role.
-
-### **Credentials & Interactive Role Portals**
-
-| Role | Email | Production Portal | Localhost Portal | Interactive Buttons & Workflows |
-|---|---|---|---|---|
-| **Student** | `student.aiml@orion-demo.edu` | [Student Portal](https://orion-incident-orchestration-git-shashank-1-shadow-monarch1.vercel.app/student) | [`/student`](http://localhost:3000/student) | `+ Report Issue` modal, `Submit Incident Report`, `▲ Upvote`, `Answer Clarification`, `Accept & Close Incident`, `Reject & Reopen`. |
-| **Class Representative (CR)** | `cr.aiml@orion-demo.edu` | [CR Portal](https://orion-incident-orchestration-git-shashank-1-shadow-monarch1.vercel.app/cr) | [`/cr`](http://localhost:3000/cr) | `Report Classroom Issue`, `Verification Desk`, on-site physical inspection review, accept/reject repairs with causes. |
-| **Staff (Electrician)** | `staff.electrician@orion-demo.edu` | [Staff Console](https://orion-incident-orchestration-git-shashank-1-shadow-monarch1.vercel.app/staff) | [`/staff`](http://localhost:3000/staff) | Availability toggles (`Available`, `Busy`, `Off Duty`), `Acknowledge Task`, `Start Work`, `Submit Evidence` (repair notes + functional test results). |
-| **Staff (Facilities)** | `staff.facilities@orion-demo.edu` | [Staff Console](https://orion-incident-orchestration-git-shashank-1-shadow-monarch1.vercel.app/staff) | [`/staff`](http://localhost:3000/staff) | Duty availability toggles, maintenance queue, task acknowledgement, evidence upload. |
-| **Head of Department (HOD)** | `hod.facilities@orion-demo.edu` | [HOD Operations](https://orion-incident-orchestration-git-shashank-1-shadow-monarch1.vercel.app/hod) | [`/hod`](http://localhost:3000/hod) | **Approval Console**: `Approve` and `Reject` high-risk/hazardous execution plans with audit reasons, department incident queue. |
-| **Principal** | `principal@orion-demo.edu` | [Principal Governance](https://orion-incident-orchestration-git-shashank-1-shadow-monarch1.vercel.app/principal) | [`/principal`](http://localhost:3000/principal) | `Manage Roles` authorization modal, Roster Management table, College Setup tabs (`College`, `Department`, `Location`, `Roster`). |
-
----
-
-## 🤖 Autonomous Multi-Agent Loop
-
-ORION orchestrates campus operations through 4 specialized AI agents powered by OpenAI-compatible LLM inference (default: `meta-llama/Llama-3.3-70B-Instruct` via Featherless):
-
-```text
-Student / CR Report
-       │
-       ▼
-[ 1. Triage Agent ] ──► Classifies category & severity floor
-       │                 Detects missing info ➔ Enqueues Clarification
-       ▼
-[ 2. Commander Agent ] ──► Generates DAG execution plan (tasks, dependencies, evidence policy)
-       │                    Enforces approval requirements for hazardous actions
-       ▼
-[ 3. Specialist Agent ] ──► Queries live DB facts for eligible & available staff
-       │                     Dispatches assignment outbox email with single-use action tokens
-       ▼
-[ Operations Staff ] ────► Acknowledges via email link or dashboard, performs physical fix,
-       │                     uploads structured evidence (notes, test results, photos)
-       ▼
-[ 4. Verification Agent ] ──► Evaluates evidence completeness against safety rules
-       │                       Enforces policy override: Physical/electrical work REQUIRES human check
-       ▼
-[ Human Verifier (CR / Reporter) ] ──► Physical inspection on-site
-                                         ├── ACCEPT ➔ Incident RESOLVED
-                                         └── REJECT ➔ Incident REOPENED ➔ Commander Replans
-```
-
-### Safety & Governance Guarantees
-- **Human Verification Enforced**: Technicians cannot mark tickets "resolved". They submit work for verification.
-- **Self-Approval Prohibited**: HODs and supervisors cannot approve actions requested for themselves or incidents they reported.
-- **Multi-Tenant RLS**: Every database table enforces composite Row Level Security keys (`institution_id`).
-- **Idempotent Durable Jobs**: Background tasks are leased and retried with exponential backoff; dead letters escalate to human supervisors.
-
----
-
-## 🛠️ Technology Stack
-
-- **Framework**: [Next.js 16 (App Router)](https://nextjs.org) with React 19
-- **Database & Auth**: [Supabase](https://supabase.com) (PostgreSQL 15+, Row Level Security, Realtime)
-- **AI / LLM Orchestration**: [Featherless AI](https://featherless.ai) (`meta-llama/Llama-3.3-70B-Instruct`)
-- **Email Delivery**: [Resend](https://resend.com) & [React Email](https://react.email)
-- **Styling**: Tailwind CSS v4
-- **Testing**: [Vitest](https://vitest.dev) (Unit & Integration) & [Playwright](https://playwright.dev) (E2E & User Simulation)
-- **Type Safety**: TypeScript 5.8 & Zod 3.24
-
----
-
-## ⚡ Quick Start & Local Setup
-
-### 1. Prerequisites
-- Node.js 22+
-- npm 10+
-
-### 2. Clone & Install
-```bash
-git clone https://github.com/thotashashank302/O.R.I.O.N---OPERATING-RESPONSE-AND-INCIDENT-ORCHESTRATION-NETWORK.git
-cd O.R.I.O.N---OPERATING-RESPONSE-AND-INCIDENT-ORCHESTRATION-NETWORK
-npm install
-```
-
-### 3. Configure Environment Variables
-Copy the template to `.env`:
-```bash
-cp .env.example .env
-```
-Ensure the following variables are configured:
-
-```ini
-# Supabase
-NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
-NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
-SUPABASE_SECRET_KEY=sb_secret_...
-
-# AI Provider (Featherless)
-FEATHERLESS_API_KEY=your_featherless_key
-FEATHERLESS_BASE_URL=https://api.featherless.ai/v1
-FEATHERLESS_MODEL=meta-llama/Llama-3.3-70B-Instruct
-
-# Email Service (Resend)
-RESEND_API_KEY=re_...
-RESEND_FROM=ORION Operations <notifications@yourdomain.com>
-APP_URL=https://orion-incident-orchestration-git-shashank-1-shadow-monarch1.vercel.app # or http://localhost:3000 for local dev
-EMAIL_ACTION_SECRET=your_secure_random_action_secret
-AUTOMATION_SECRET=your_secure_random_automation_secret
-CRON_SECRET=your_cron_secret
-
-# Demo Environment
-DEMO_MODE=false
-DEMO_RECIPIENT_ALLOWLIST="lokinindi.shivani@gmail.com,thotashashank302@gmail.com"
-```
-
-### 4. Run Development Server
-```bash
-npm run dev
-```
-Open [http://localhost:3000](http://localhost:3000) in your browser.
-
----
-
-## 🧪 Verification & Test Suite
-
-Run the full verification pipeline to validate types, code quality, unit logic, production build, and end-to-end user journeys:
-
-```bash
-# 1. Typecheck
-npm run typecheck
-
-# 2. Linter
-npm run lint
-
-# 3. Unit & Integration Tests (101 tests across 13 suites)
-npm run test
-
-# 4. Production Build (all 34 static and dynamic routes)
+```sh
 npm run build
-
-# 5. Playwright E2E Tests
-npm run test:e2e
+npm run local:start
 ```
 
-### Test Live Model & Lifecycle Journey
-```bash
-# Verify live Featherless AI model responses:
-npx tsx --env-file=.env scripts/check-live-model.ts
+Open **http://localhost:3000**. Keep the terminal running and the computer awake.
+The launcher starts the website and a background worker, polling every 10 seconds
+after the previous tick completes. Ctrl+C stops both. Rebuild after source changes.
+For development with automatic recompilation, use `npm run local`.
+`npm run dev` starts only the website, without the recurring worker.
 
-# Run the complete 8-step end-to-end incident lifecycle:
-npx tsx --env-file=.env scripts/run-demo-journey.ts
-```
+The launcher sets `APP_URL` to localhost for its process. Supabase, AI and email
+still use the configured online services. Queued work may update the connected
+database and send notifications. Vercel cron restrictions do not apply to this
+local worker. Local email links open on this computer; public webhooks need a
+reachable URL.
 
----
+For password recovery, allow
+`http://localhost:3000/auth/callback?next=/reset-password` in Supabase Auth URL
+Configuration and configure its email sender. Open the recovery link in the
+browser that requested it.
 
-## 📦 Production Deployment
+## Project map
 
-### Vercel Deployment
-1. Connect this repository to **Vercel**.
-2. Set the Environment Variables matching your production Supabase, Featherless, and Resend credentials.
-3. Ensure `APP_URL` is set to your production Vercel deployment URL (e.g. `https://orion-incident-orchestration.vercel.app`).
-4. Set `CRON_SECRET` to enable automated worker execution via Vercel Cron (`/api/automation/tick`).
+| Folder | Purpose |
+| --- | --- |
+| `src/app/` | Next.js pages, layouts and API routes |
+| `src/features/` | Feature interfaces, shared dashboard shell and contracts |
+| `src/contracts/` | Shared schemas and types |
+| `src/server/` | Authentication, persistence, agents and background workflows |
+| `src/emails/` | Email templates used by the notification transport |
+| `src/lib/` | Shared utilities |
+| `public/` | Assets served by the website, including the login photograph |
+| `supabase/migrations/` | Ordered database migration history; do not edit applied migrations |
+| `supabase/tests/` | SQL regression checks |
+| `scripts/` | Local launcher, worker, diagnostics and packaging tools |
+| `tests/unit/` | Unit and route regression tests |
+| `tests/e2e/` | Browser smoke and regression tests |
+| `tests/fixtures/` | Test-only simulations; never import into application code |
+| `docs/` | Current contracts, ownership, product/design notes and review results |
+| `docs/archive/` | Historical plans, handoff progress and non-executable schema drafts |
 
----
+The persisted reporting implementation is `src/server/reporting/persistent-service.ts`;
+API routes and database migrations enforce production workflow rules. The old
+in-memory reporting models live exclusively in test fixtures.
 
-## 👥 Team Responsibilities
+## Demo access
 
-- **Developer 1**: Core architecture, database migrations, state machines, durable worker, AI provider adapters, Commander agent.
-- **Developer 2**: Identity, multi-tenant contexts, roster ingestion, role appointment system.
-- **Developer 3**: Incident intake, evidence upload tickets, community voting, student feed, Triage agent.
-- **Developer 4**: Staff operations, duty availability, evidence forms, HOD approvals, Verification agent.
-- **Developer 5**: Unified design system, Specialist dispatch, tokenized action emails, outbox queue, notification feed.
+These accounts belong to the existing controlled demo database. They are not
+created automatically by installing the project. Password: `OrionDemo2026!`.
+
+| Role | Email | Dashboard |
+| --- | --- | --- |
+| Student | `student.aiml@orion-demo.edu` | `/student` |
+| Class representative | `cr.aiml@orion-demo.edu` | `/cr` |
+| Electrician | `staff.electrician@orion-demo.edu` | `/staff` |
+| Facilities staff | `staff.facilities@orion-demo.edu` | `/staff` |
+| HOD | `hod.facilities@orion-demo.edu` | `/hod` |
+| Principal | `principal@orion-demo.edu` | `/principal` |
+
+## Commands and verification
+
+| Command | Purpose |
+| --- | --- |
+| `npm run local` | Development website and recurring worker |
+| `npm run local:start` | Built website and recurring worker |
+| `npm run lint` | ESLint checks |
+| `npm run typecheck` | TypeScript checks |
+| `npm test` | Unit and route tests |
+| `npm run build` | Production build |
+| `npm run test:e2e` | Browser checks; install Chromium with `npx playwright install chromium` first |
+| `npm run package` | Create `dist/ORION_CLEAN_WORKING_SOURCE.zip` (requires Python 3) |
+
+Run verification commands serially. Browser tests use localhost and the existing
+demo accounts; action/failure regressions intercept writes. They do not prove a
+complete live incident lifecycle or email delivery.
+
+The isolated PostgreSQL security runner and its setup are documented in
+[Security remediation](docs/SECURITY_REMEDIATION.md). `scripts/check-live-model.ts`
+is an optional live provider diagnostic. `scripts/seed-demo.ts` writes demo
+institution structure; it does not provision the login accounts above.
+
+## Documentation
+
+- [API contract](docs/API_CONTRACT.md) and [team ownership](docs/OWNERSHIP.md)
+- [Product scope](docs/PRODUCT.md) and [visual design](docs/DESIGN.md)
+- [Security remediation and database validation](docs/SECURITY_REMEDIATION.md)
+- [Browser debugging results](docs/BROWSER_DEBUG_REVIEW.md)
+- [Historical handoff archive](docs/archive/README.md)
+
+## Sharing and disk space
+
+`npm run package` includes source, configuration templates, documentation, tests
+and migrations. It excludes credentials, installed dependencies, build caches,
+Git history, screenshots and previous archives. The ZIP is generated and ignored
+by Git. After extracting, follow the setup steps above with your own `.env`.
+
+`node_modules/` and `.next/` account for most installed disk usage. They are ignored
+by Git and excluded from the ZIP, but are needed to run the installed application.

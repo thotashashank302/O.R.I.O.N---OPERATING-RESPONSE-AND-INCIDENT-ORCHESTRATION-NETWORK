@@ -10,3 +10,9 @@ coverage/
 *.tsbuildinfo
 .DS_Store
 supabase/.temp/
+
+# Generated review evidence and shareable source archives
+.impeccable/
+outputs/
+dist/
+__pycache__/

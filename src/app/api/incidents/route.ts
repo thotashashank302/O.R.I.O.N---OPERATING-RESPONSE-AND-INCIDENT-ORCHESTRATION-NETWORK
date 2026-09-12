@@ -1,7 +1,8 @@
+import { workflowFailure } from '@/server/reporting/persistence-errors';
 import { after, NextRequest } from 'next/server';
 import { jsonSuccess, jsonError } from '@/server/http-envelope';
-import { CreateIncidentSchema } from '@/contracts/reporting';
-import { requireRequestContext } from '@/server/auth/request-context';
+import { PersistentCreateIncidentSchema } from '@/contracts/reporting';
+import { requireRequestContext, authorizationFailure } from '@/server/auth/request-context';
 import { createPersistentIncident, listPersistentIncidents } from '@/server/reporting/persistent-service';
 import { createProductionWorker } from '@/server/orchestration/production-worker';
 
@@ -14,6 +15,10 @@ export async function GET(req: NextRequest) {
     const incidents = await listPersistentIncidents(context);
     return jsonSuccess({ incidents });
   } catch (err: unknown) {
+    const authFailure = authorizationFailure(err);
+    if (authFailure) return authFailure;
+    const persistenceFailure = workflowFailure(err);
+    if (persistenceFailure) return persistenceFailure;
     const message = err instanceof Error ? err.message : 'Failed to fetch incidents';
     return jsonError('SERVER_ERROR', message, 500);
   }
@@ -30,7 +35,7 @@ export async function POST(req: NextRequest) {
       institutionId: context.institutionId,
     };
 
-    const validated = CreateIncidentSchema.safeParse(payload);
+    const validated = PersistentCreateIncidentSchema.safeParse(payload);
     if (!validated.success) {
       return jsonError('VALIDATION_ERROR', validated.error.message, 422);
     }
@@ -63,6 +68,10 @@ export async function POST(req: NextRequest) {
       201
     );
   } catch (err: unknown) {
+    const authFailure = authorizationFailure(err);
+    if (authFailure) return authFailure;
+    const persistenceFailure = workflowFailure(err);
+    if (persistenceFailure) return persistenceFailure;
     const message = err instanceof Error ? err.message : 'Failed to create incident';
     if (message.includes('Rate limit exceeded')) {
       return jsonError('RATE_LIMITED', message, 429);

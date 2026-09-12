@@ -1,6 +1,7 @@
+import { workflowFailure } from '@/server/reporting/persistence-errors';
 import { NextRequest } from 'next/server';
 import { jsonSuccess, jsonError } from '@/server/http-envelope';
-import { requireRequestContext } from '@/server/auth/request-context';
+import { requireRequestContext, authorizationFailure } from '@/server/auth/request-context';
 import { getPersistentIncident } from '@/server/reporting/persistent-service';
 
 export async function GET(
@@ -18,6 +19,10 @@ export async function GET(
 
     return jsonSuccess({ incident: { ...incident, isReporter: incident.reporterId === context.membershipId } });
   } catch (err: unknown) {
+    const authFailure = authorizationFailure(err);
+    if (authFailure) return authFailure;
+    const persistenceFailure = workflowFailure(err);
+    if (persistenceFailure) return persistenceFailure;
     const message = err instanceof Error ? err.message : 'Error retrieving incident';
     return jsonError('SERVER_ERROR', message, 500);
   }

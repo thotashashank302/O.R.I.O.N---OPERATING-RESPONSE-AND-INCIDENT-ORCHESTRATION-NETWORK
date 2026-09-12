@@ -1866,6 +1866,11 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      orion_record_agent_verification: { Args: { target_id: string; tenant_id: string; expected_evidence_version: number; agent_payload: Json; decision: Json }; Returns: boolean }
+      orion_consume_upload_attempt: { Args: { tenant_id: string; actor_id: string }; Returns: boolean }
+      orion_create_incident: { Args: { tenant_id: string; actor_id: string; operation_id: string; request_payload: Json; incident_payload: Json; agent_payload: Json }; Returns: Json }
+      orion_verify_task: { Args: { target_id: string; actor_id: string; tenant_id: string; expected_evidence_version: number; decision: string; reason: string }; Returns: Json }
+
       acknowledge_email_assignment: {
         Args: {
           expected_assignment_version: number

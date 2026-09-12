@@ -13,13 +13,15 @@ async function fetchIncidents(context: UserContextItem): Promise<IncidentSummary
   const response = await fetch('/api/incidents', {
     headers: orionContextHeaders(context),
   });
-  const payload = (await response.json()) as { data?: { incidents?: IncidentSummary[] } };
-  return response.ok && payload.data?.incidents ? payload.data.incidents : [];
+  const payload = (await response.json()) as { data?: { incidents?: IncidentSummary[] }; error?: { message?: string } };
+  if (!response.ok || !payload.data?.incidents) throw new Error(payload.error?.message ?? 'Unable to load the incident feed');
+  return payload.data.incidents;
 }
 
 export default function CRDashboardPage() {
   const [incidents, setIncidents] = useState<IncidentSummary[]>([]);
   const [showReportModal, setShowReportModal] = useState(false);
+  const [feedError, setFeedError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const contextState = useActiveContext();
   const activeContext = contextState.activeContext;
@@ -27,9 +29,10 @@ export default function CRDashboardPage() {
   const loadIncidents = async () => {
     try {
       setLoading(true);
+      setFeedError(null);
       if (activeContext) setIncidents(await fetchIncidents(activeContext));
     } catch (err) {
-      console.error('Failed to load incidents', err);
+      setFeedError(err instanceof Error ? err.message : 'Unable to load incidents');
     } finally {
       setLoading(false);
     }
@@ -40,10 +43,10 @@ export default function CRDashboardPage() {
     if (!activeContext) return;
     fetchIncidents(activeContext)
       .then((nextIncidents) => {
-        if (!cancelled) setIncidents(nextIncidents);
+        if (!cancelled) { setIncidents(nextIncidents); setFeedError(null); }
       })
       .catch((error: unknown) => {
-        console.error('Failed to load incidents', error);
+        if (!cancelled) setFeedError(error instanceof Error ? error.message : 'Unable to load incidents');
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -58,11 +61,15 @@ export default function CRDashboardPage() {
   }
 
   const pendingVerificationIncidents = incidents.filter(
-    (i) => i.state === 'submitted_for_verification'
+    (i) => i.state === 'submitted_for_verification' && i.reporterId === activeContext.membership_id
   );
 
   return (
     <div className="space-y-6 px-4 py-8 sm:px-8">
+      {feedError && <div role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+        <p>{feedError}. The feed could not be refreshed.</p>
+        <button type="button" onClick={loadIncidents} disabled={loading} className="mt-2 font-semibold underline disabled:opacity-50">Retry feed</button>
+      </div>}
       {/* Header — warm institutional */}
       <div className="rounded-2xl border border-stone-200 bg-white/80 p-6 flex items-center justify-between flex-wrap gap-4">
         <div>
@@ -96,7 +103,7 @@ export default function CRDashboardPage() {
           </h2>
         </div>
 
-        {pendingVerificationIncidents.length > 0 ? (
+        {feedError || loading ? null : pendingVerificationIncidents.length > 0 ? (
           <div className="p-5 bg-emerald-50/80 border border-emerald-200 rounded-2xl space-y-3">
             <div className="flex items-center gap-2 text-emerald-800 font-bold text-sm">
               <span>⚡</span>
@@ -132,7 +139,7 @@ export default function CRDashboardPage() {
       {/* Routine issues stream */}
       <div id="incidents" className="scroll-mt-6 space-y-3">
         <h2 className="text-base font-bold">All Classroom & Department Issues</h2>
-        {loading ? (
+        {feedError ? null : loading ? (
           <div className="text-center py-8 text-stone-400 text-sm">Loading department feed...</div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

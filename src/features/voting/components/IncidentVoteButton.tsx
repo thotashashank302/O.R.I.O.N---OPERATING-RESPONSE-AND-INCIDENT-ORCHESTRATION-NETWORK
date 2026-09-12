@@ -21,6 +21,7 @@ export default function IncidentVoteButton({
 }: IncidentVoteButtonProps) {
   const [voteCount, setVoteCount] = useState(initialVoteCount);
   const [hasVoted, setHasVoted] = useState(initialHasVoted);
+  const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
   if (isConfidential) {
@@ -34,6 +35,7 @@ export default function IncidentVoteButton({
   const handleToggleVote = async () => {
     if (isLoading) return;
     setIsLoading(true);
+    setError(null);
 
     try {
       const method = hasVoted ? 'DELETE' : 'PUT';
@@ -46,18 +48,18 @@ export default function IncidentVoteButton({
       });
 
       const json = await res.json();
-      if (res.ok && json.data) {
-        setVoteCount(json.data.voteCount);
-        setHasVoted(json.data.hasVoted);
-      }
+      if (!res.ok || !json.data) throw new Error(json.error?.message ?? "The vote could not be updated");
+      setVoteCount(json.data.voteCount);
+      setHasVoted(json.data.hasVoted);
     } catch (err) {
-      console.error('Failed to toggle vote:', err);
+      setError(err instanceof Error ? err.message : 'The vote could not be updated. Please retry.');
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
+    <span className="inline-flex flex-col items-start gap-1">
     <button
       type="button"
       onClick={handleToggleVote}
@@ -73,5 +75,7 @@ export default function IncidentVoteButton({
       <span>{voteCount}</span>
       <span className="text-[10px] font-normal opacity-80">{hasVoted ? 'Voted' : 'Vote'}</span>
     </button>
+    {error && <span role="alert" className="text-xs text-red-700">{error}</span>}
+    </span>
   );
 }

@@ -1,8 +1,9 @@
+import { enqueueCommanderJob } from "./commander-enqueue";
 import { verifySubmittedTask } from "./verify-task";
-import { randomUUID, createHash } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { commanderContextSchema } from "./schemas";
-import { incidentPlanSchema, type SpecialistAction } from "@/contracts/agents";
+import { incidentPlanSchema } from "@/contracts/agents";
 import { CommanderAgent } from "@/server/agents/commander";
 import { FeatherlessProvider } from "@/server/agents/provider";
 import { executeRecorded, type AgentRunStore } from "@/server/agents/runner";
@@ -64,10 +65,7 @@ export function createProductionWorker(): DurableJobWorker {
       plan_payload: plan,
       agent_run_id: runId,
     });
-    if (rpcError) {
-      console.warn("[ORION Commander] RPC persist_commander_plan failed, executing resilient TypeScript persistence:", rpcError.message);
-      await persistCommanderPlanFallback(client, job, context.incident.version, plan, runId);
-    }
+    if (rpcError) throw rpcError;
   };
 
   const handleSpecialist = async (job: JobRecord) => {
@@ -100,10 +98,7 @@ export function createProductionWorker(): DurableJobWorker {
       action_payload: output.result,
       agent_run_id: runId,
     });
-    if (persisted.error) {
-      console.warn("[ORION Specialist] RPC persist_specialist_action failed, executing resilient TypeScript persistence:", persisted.error.message);
-      await persistSpecialistActionFallback(client, job, incidentVersion, selected, output.result, runId);
-    }
+    if (persisted.error) throw persisted.error;
   };
 
   const handleOutbox = async (job: JobRecord) => {
@@ -202,6 +197,10 @@ export function createProductionWorker(): DurableJobWorker {
   return new DurableJobWorker(new SupabaseJobStore(client), {
     verification: verifySubmittedTask,
     commander: handleCommander,
+    commander_enqueue: async (job) => {
+      if (!job.incidentId) throw new Error("Commander enqueue requires an incident");
+      await enqueueCommanderJob(job.incidentId, typeof job.payload.reason === "string" ? job.payload.reason : null, `operation-${job.id}`);
+    },
     specialist: handleSpecialist,
     ack_reminder: handleAckReminder,
     assignment_escalation: handleAssignmentEscalation,
@@ -210,312 +209,3 @@ export function createProductionWorker(): DurableJobWorker {
     outbox_delivery: handleOutbox,
   });
 }
-
-async function persistCommanderPlanFallback(
-  client: ReturnType<typeof createSupabaseAdmin>,
-  job: JobRecord,
-  expectedIncidentVersion: number,
-  plan: z.infer<typeof incidentPlanSchema>,
-  agentRunId: string,
-) {
-  const incidentId = job.incidentId!;
-  const institutionId = job.institutionId;
-
-  const { data: incident, error: incError } = await client.from("incidents")
-    .select("id, institution_id, version, plan_version, state")
-    .eq("id", incidentId)
-    .single();
-  if (incError || !incident) throw new Error("Incident not found for Commander plan");
-  if (incident.version !== expectedIncidentVersion) throw new Error("Stale incident version");
-
-  await client.from("incident_plans")
-    .update({ status: "superseded" })
-    .eq("incident_id", incidentId)
-    .eq("status", "active");
-
-  const newPlanId = randomUUID();
-  const nextPlanVersion = incident.plan_version + 1;
-
-  const { error: planError } = await client.from("incident_plans").insert({
-    id: newPlanId,
-    institution_id: institutionId,
-    incident_id: incidentId,
-    version: nextPlanVersion,
-    priority: plan.priority,
-    explanation: plan.explanation,
-    acknowledgement_minutes: plan.acknowledgementMinutes,
-    status: "active",
-    agent_run_id: agentRunId,
-  });
-  if (planError) throw new Error(`Failed to insert incident plan: ${planError.message}`);
-
-  const taskMap = new Map<string, string>();
-  for (const t of plan.tasks) {
-    const taskId = randomUUID();
-    taskMap.set(t.localId, taskId);
-    const hasDeps = t.dependsOn && t.dependsOn.length > 0;
-    const { error: taskError } = await client.from("incident_tasks").insert({
-      id: taskId,
-      institution_id: institutionId,
-      plan_id: newPlanId,
-      local_id: t.localId,
-      logical_task_key: t.logicalTaskKey,
-      specialist_profile: t.profile,
-      goal: t.goal,
-      evidence_requirements: t.evidencePolicy as unknown as Json,
-      requires_approval: t.requiresApproval,
-      state: hasDeps ? "pending" : "ready",
-      evidence_version: 1,
-    });
-    if (taskError) throw new Error(`Failed to insert task ${t.localId}: ${taskError.message}`);
-  }
-
-  for (const t of plan.tasks) {
-    if (!t.dependsOn || t.dependsOn.length === 0) continue;
-    const taskId = taskMap.get(t.localId)!;
-    for (const dep of t.dependsOn) {
-      const prereqId = taskMap.get(dep);
-      if (prereqId) {
-        await client.from("task_dependencies").insert({
-          institution_id: institutionId,
-          task_id: taskId,
-          prerequisite_task_id: prereqId,
-        });
-      }
-    }
-  }
-
-  const hasApproval = plan.tasks.some((t) => t.requiresApproval);
-  const nextIncidentVersion = incident.version + 1;
-  const { error: incUpdateError } = await client.from("incidents").update({
-    plan_version: nextPlanVersion,
-    version: nextIncidentVersion,
-    state: hasApproval ? "awaiting_approval" : "planned",
-    updated_at: new Date().toISOString(),
-  }).eq("id", incidentId);
-  if (incUpdateError) throw new Error(`Failed to update incident: ${incUpdateError.message}`);
-
-  if (hasApproval) {
-    for (const t of plan.tasks) {
-      if (t.requiresApproval) {
-        const payloadHash = createHash("sha256").update(JSON.stringify(t)).digest("hex");
-        const { error: appErr } = await client.from("approvals").insert({
-          id: randomUUID(),
-          institution_id: institutionId,
-          incident_id: incidentId,
-          plan_version: nextPlanVersion,
-          action_payload_hash: payloadHash,
-        });
-        if (appErr) console.error("Failed to insert approval:", appErr);
-      }
-    }
-  }
-
-  await client.from("incident_events").insert({
-    institution_id: institutionId,
-    incident_id: incidentId,
-    actor_type: "agent",
-    action: "commander_plan_created",
-    safe_payload: { planId: newPlanId, version: nextPlanVersion } as unknown as Json,
-  });
-
-  if (!hasApproval) {
-    for (const t of plan.tasks) {
-      if (!t.dependsOn || t.dependsOn.length === 0) {
-        const taskId = taskMap.get(t.localId)!;
-        await client.from("jobs").insert({
-          institution_id: institutionId,
-          type: "specialist",
-          incident_id: incidentId,
-          dedupe_key: `specialist:${taskId}:e1`,
-          payload: { taskId },
-        });
-      }
-    }
-  }
-}
-
-async function persistSpecialistActionFallback(
-  client: ReturnType<typeof createSupabaseAdmin>,
-  job: JobRecord,
-  expectedIncidentVersion: number,
-  selectedStaff: { membershipId: string; capabilityVersion: number },
-  actionPayload: SpecialistAction,
-  agentRunId: string,
-) {
-  const incidentId = job.incidentId!;
-  const institutionId = job.institutionId;
-  const taskId = actionPayload.taskId;
-
-  const { data: targetTask, error: taskErr } = await client.from("incident_tasks")
-    .select("id, institution_id, state, plan_id, requires_approval, specialist_profile")
-    .eq("id", taskId)
-    .single();
-  if (taskErr || !targetTask) throw new Error(`Task ${taskId} not found for specialist fallback: ${taskErr?.message}`);
-
-  const { data: targetPlan, error: planErr } = await client.from("incident_plans")
-    .select("id, incident_id, version, acknowledgement_minutes")
-    .eq("id", targetTask.plan_id)
-    .eq("status", "active")
-    .single();
-  if (planErr || !targetPlan) throw new Error(`Active plan not found for task ${taskId}: ${planErr?.message}`);
-
-  const { data: targetIncident, error: incErr } = await client.from("incidents")
-    .select("id, version, state")
-    .eq("id", incidentId)
-    .single();
-  if (incErr || !targetIncident) throw new Error(`Incident not found: ${incErr?.message}`);
-  if (targetIncident.version !== expectedIncidentVersion) {
-    throw new Error(`Stale incident version: expected ${expectedIncidentVersion}, got ${targetIncident.version}`);
-  }
-
-  // Update task checklist & evidence requirements
-  await client.from("incident_tasks").update({
-    checklist: actionPayload.checklist as unknown as Json,
-    evidence_requirements: actionPayload.evidenceRequired as unknown as Json,
-  }).eq("id", taskId);
-
-  const requiresApproval = targetTask.requires_approval || actionPayload.communicationType === "approval_request";
-  if (requiresApproval) {
-    const { data: existingApproval } = await client.from("approvals")
-      .select("id, decision")
-      .eq("incident_id", incidentId)
-      .eq("plan_version", targetPlan.version)
-      .eq("decision", "approved")
-      .maybeSingle();
-
-    if (!existingApproval) {
-      const payloadHash = createHash("sha256").update(JSON.stringify(actionPayload)).digest("hex");
-      await client.from("approvals").insert({
-        institution_id: institutionId,
-        incident_id: incidentId,
-        action_payload_hash: payloadHash,
-        plan_version: targetPlan.version,
-      });
-
-      const { data: grants } = await client.from("role_grants")
-        .select("membership_id")
-        .eq("institution_id", institutionId)
-        .in("role", ["principal", "hod", "supervisor"])
-        .is("revoked_at", null);
-
-      if (grants && grants.length > 0) {
-        await client.from("notifications").insert(
-          grants.map((g) => ({
-            institution_id: institutionId,
-            recipient_membership_id: g.membership_id,
-            safe_text: "An ORION action requires approval.",
-            link: `/incidents/${incidentId}`,
-          }))
-        );
-      }
-      return null;
-    }
-  }
-
-  // Proceed with assignment
-  const ackMinutes = targetPlan.acknowledgement_minutes || 15;
-  const ackDeadline = new Date(Date.now() + ackMinutes * 60 * 1000).toISOString();
-  const assignmentId = randomUUID();
-
-  const { error: assignErr } = await client.from("assignments").insert({
-    id: assignmentId,
-    institution_id: institutionId,
-    task_id: taskId,
-    assignee_membership_id: selectedStaff.membershipId,
-    acknowledgement_deadline: ackDeadline,
-    state: "offered",
-    active_version: true,
-  });
-  if (assignErr) throw new Error(`Failed to insert assignment: ${assignErr.message}`);
-
-  await client.from("incident_tasks").update({ state: "assigned" }).eq("id", taskId);
-
-  // Lookup assignee email
-  const { data: member } = await client.from("institution_memberships")
-    .select("id, user_id")
-    .eq("id", selectedStaff.membershipId)
-    .single();
-
-  let recipientEmail: string | null = null;
-  if (member?.user_id) {
-    try {
-      const { data: authUser } = await client.auth.admin.getUserById(member.user_id);
-      recipientEmail = authUser?.user?.email ?? null;
-    } catch {
-      // fallback
-    }
-  }
-  if (!recipientEmail) {
-    recipientEmail = "staff.electrician@orion-demo.edu";
-  }
-
-  const outboxId = randomUUID();
-  const { error: outboxErr } = await client.from("email_outbox").insert({
-    id: outboxId,
-    institution_id: institutionId,
-    assignment_id: assignmentId,
-    assignment_version: 1,
-    recipient: recipientEmail,
-    message_type: actionPayload.communicationType,
-    idempotency_key: `assignment:${assignmentId}:v1`,
-    transport_state: "queued",
-  });
-  if (outboxErr) throw new Error(`Failed to insert outbox: ${outboxErr.message}`);
-
-  // Enqueue outbox delivery job
-  await client.from("jobs").insert({
-    institution_id: institutionId,
-    type: "outbox_delivery",
-    incident_id: incidentId,
-    dedupe_key: `outbox:assignment:${assignmentId}:v1`,
-    payload: { outboxId } as unknown as Json,
-  });
-
-  // Enqueue reminder & escalation jobs
-  await client.from("jobs").insert([
-    {
-      institution_id: institutionId,
-      incident_id: incidentId,
-      type: "ack_reminder",
-      dedupe_key: `ack-reminder:${assignmentId}`,
-      payload: { assignmentId } as unknown as Json,
-      due_at: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
-    },
-    {
-      institution_id: institutionId,
-      incident_id: incidentId,
-      type: "assignment_escalation",
-      dedupe_key: `ack-escalation:${assignmentId}`,
-      payload: { assignmentId } as unknown as Json,
-      due_at: new Date(Date.now() + 20 * 60 * 1000).toISOString(),
-    },
-  ]);
-
-  // Notify staff member
-  await client.from("notifications").insert({
-    institution_id: institutionId,
-    recipient_membership_id: selectedStaff.membershipId,
-    safe_text: "A new ORION task requires acknowledgement.",
-    link: "/staff#evidence",
-  });
-
-  // Log incident event
-  await client.from("incident_events").insert({
-    institution_id: institutionId,
-    incident_id: incidentId,
-    actor_type: "agent",
-    action: "specialist_assignment_created",
-    safe_payload: { assignmentId, agentRunId } as unknown as Json,
-  });
-
-  // Advance incident state
-  await client.from("incidents").update({
-    state: "assigned",
-    version: targetIncident.version + 1,
-    updated_at: new Date().toISOString(),
-  }).eq("id", incidentId);
-
-  return assignmentId;
-}
-

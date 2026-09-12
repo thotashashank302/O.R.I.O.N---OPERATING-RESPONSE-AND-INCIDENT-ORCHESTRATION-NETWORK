@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { importRosterRows } from "@/server/identity/roster";
-import { requireRequestContext } from "@/server/auth/request-context";
+import { requireRequestContext, authorizationFailure } from "@/server/auth/request-context";
 
 export async function POST(req: NextRequest) {
   const requestId = crypto.randomUUID();
@@ -19,6 +19,8 @@ export async function POST(req: NextRequest) {
     const result = await importRosterRows(context.institutionId, rows);
     return NextResponse.json({ data: result, requestId });
   } catch (err: unknown) {
+    const authFailure = authorizationFailure(err);
+    if (authFailure) return authFailure;
     return NextResponse.json(
       { error: { code: "SERVER_ERROR", message: err instanceof Error ? err.message : "Failed to import roster" }, requestId },
       { status: 500 }

@@ -60,16 +60,24 @@ export const UPLOAD_LIMITS = {
   maxFileAttemptsPerHour: 10,
 };
 
+export const UploadRequestSchema = z.object({
+  fileName: z.string().trim().min(1).max(255),
+  fileSize: z.number().int().positive().max(UPLOAD_LIMITS.maxSizeBytes),
+  mimeType: z.enum(UPLOAD_LIMITS.allowedMimeTypes),
+  incidentId: z.string().uuid().optional(),
+});
+
 export const AttachmentSchema = z.object({
   storageKey: z.string().min(5),
   fileName: z.string().min(1).max(255),
-  fileSize: z.number().max(UPLOAD_LIMITS.maxSizeBytes, 'File exceeds 5MB limit'),
+  fileSize: z.number().int().positive().max(UPLOAD_LIMITS.maxSizeBytes, 'File exceeds 5MB limit'),
   mimeType: z.enum(['image/jpeg', 'image/png', 'image/webp']),
 });
 
 export type Attachment = z.infer<typeof AttachmentSchema>;
 
 export const CreateIncidentSchema = z.object({
+  operationId: z.string().uuid().optional(),
   institutionId: z.string().uuid(),
   categorySuggestion: z.enum(INCIDENT_CATEGORIES).optional().default('other'),
   description: z
@@ -99,6 +107,8 @@ export const CreateIncidentSchema = z.object({
     .max(UPLOAD_LIMITS.maxFilesPerReport, 'Maximum 3 photos allowed')
     .default([]),
 });
+
+export const PersistentCreateIncidentSchema = CreateIncidentSchema.extend({ operationId: z.string().uuid() });
 
 export type CreateIncidentInput = z.input<typeof CreateIncidentSchema>;
 

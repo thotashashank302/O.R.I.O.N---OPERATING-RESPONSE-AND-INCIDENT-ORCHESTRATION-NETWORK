@@ -2,7 +2,7 @@ import { z } from "zod";
 import { AuthorizationError } from "@/server/auth/authorization";
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseAdmin } from "@/server/db/supabase-admin";
-import { requireRequestContext } from "@/server/auth/request-context";
+import { requireRequestContext, authorizationFailure } from "@/server/auth/request-context";
 
 export async function GET(req: NextRequest) {
   const requestId = crypto.randomUUID();
@@ -42,6 +42,8 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({ data: members, requestId }, { status: 200 });
   } catch (err: unknown) {
+    const authFailure = authorizationFailure(err);
+    if (authFailure) return authFailure;
     const status = err instanceof z.ZodError ? 422 : err instanceof AuthorizationError ? 403 : 500;
     return NextResponse.json(
       { error: { code: "SERVER_ERROR", message: err instanceof Error ? err.message : "Failed to list members" }, requestId },

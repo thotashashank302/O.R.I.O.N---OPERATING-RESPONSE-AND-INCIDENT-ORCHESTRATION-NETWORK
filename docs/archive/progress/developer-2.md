@@ -15,7 +15,7 @@
 | B3 | Transport & club authority | ✅ verified | `src/app/api/transport/enrollments/route.ts`, `src/app/api/club-terms/route.ts` |
 | C1 | Role matrix unit tests | ✅ verified | 19/19 identity tests pass (ID-01, ID-02, ID-04, CORE-02, RP-03) |
 | C2 | Admin polish & demo test identities | ✅ verified | Custom Auth split-screen & Admin constellation themes |
-| C3 | Documentation & handoff to D1 | ✅ verified | `supabase/migrations/drafts/20260904_identity_schema.sql` drafted |
+| C3 | Documentation & handoff to D1 | ✅ verified | `docs/archive/schema-drafts/20260904_identity_schema.sql` drafted |
 
 ---
 
@@ -23,7 +23,7 @@
 
 | File | Status | Description |
 |------|--------|-------------|
-| `docs/progress/developer-2.md` | NEW | Progress tracker |
+| `docs/archive/progress/developer-2.md` | NEW | Progress tracker |
 | `src/contracts/identity.ts` | NEW | Complete Zod schemas & types for Identity domain |
 | `src/server/identity/institutions.ts` | NEW | College creation & demo bootstrap approval |
 | `src/server/identity/roster.ts` | NEW | Roster-bound claim & single/bulk row import (ID-01) |
@@ -51,7 +51,7 @@
 | `src/features/institutions/CollegeSetupForm.tsx` | NEW | Principal college/department/location/roster setup |
 | `src/app/(dashboard)/admin/page.tsx` | NEW | Admin dashboard matching constellation grid aesthetic |
 | `src/app/(dashboard)/principal/page.tsx` | NEW | Principal console with demo bootstrap |
-| `supabase/migrations/drafts/20260904_identity_schema.sql` | NEW | Migration SQL draft for D1 review |
+| `docs/archive/schema-drafts/20260904_identity_schema.sql` | NEW | Migration SQL draft for D1 review |
 | `tests/unit/identity/auth.test.ts` | NEW | Unit tests for ID-01 and ID-04 |
 | `tests/unit/identity/roles.test.ts` | NEW | Unit tests for ID-02 and CORE-02 |
 | `tests/unit/identity/eligibility.test.ts` | NEW | Unit tests for RP-03 and B2 |
@@ -99,7 +99,7 @@
 ---
 
 ## Handoff to D1 (Team Lead)
-- Draft migration SQL ready at `supabase/migrations/drafts/20260904_identity_schema.sql`
+- Draft migration SQL ready at `docs/archive/schema-drafts/20260904_identity_schema.sql`
 - All domain services in `src/server/identity/` are fully modular and importable by other developers.
 - `claimStudentMembership` is ready to link with Supabase auth trigger or custom callback.
 

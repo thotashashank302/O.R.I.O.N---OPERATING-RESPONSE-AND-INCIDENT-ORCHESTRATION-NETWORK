@@ -19,14 +19,15 @@ function isAuthorized(request: Request): boolean {
 
 async function handleTick(request: Request) {
   const requestId = request.headers.get("x-request-id") ?? randomUUID();
-  if (!isAuthorized(request)) {
-    return fail("UNAUTHORIZED_AUTOMATION", "Automation credential is invalid", requestId, 401);
-  }
   try {
+    if (!isAuthorized(request)) {
+      return fail("UNAUTHORIZED_AUTOMATION", "Automation credential is invalid", requestId, 401);
+    }
     const result = await createProductionWorker().tick(`http-${requestId}`);
     return ok(result, requestId);
   } catch (error) {
-    return fail("AUTOMATION_FAILED", error instanceof Error ? error.message : "Automation failed", requestId, 500);
+    console.error("[automation.tick]", { requestId, error });
+    return fail("AUTOMATION_FAILED", "Automation tick failed", requestId, 500);
   }
 }
 

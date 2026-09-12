@@ -2,11 +2,14 @@
 
 import React, { useEffect, useState, use } from 'react';
 import Link from 'next/link';
+import { dashboardRouteForRoles } from '@/features/auth/dashboard-route';
 import { orionContextHeaders, useActiveContext } from '@/features/identity/use-active-context';
 import type { UserContextItem } from '@/contracts/identity';
 
 interface IncidentDetails {
   id: string;
+  isReporter: boolean;
+  isConfidential?: boolean;
   category: string;
   description: string;
   locationText: string;
@@ -44,6 +47,8 @@ export default function IncidentDetailPage({
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const contextState = useActiveContext();
   const activeContext = contextState.activeContext;
+  const dashboardHref = activeContext ? dashboardRouteForRoles(activeContext.roles.map((grant) => grant.role)) ?? "/login" : "/login";
+  const [actionError, setActionError] = useState<string | null>(null);
 
   // Clarification form
   const [clarificationAnswer, setClarificationAnswer] = useState('');
@@ -56,6 +61,7 @@ export default function IncidentDetailPage({
   const fetchIncident = async () => {
     try {
       setLoading(true);
+      setErrorMsg(null);
       if (activeContext) setIncident(await loadIncident(incidentId, activeContext));
     } catch (err: unknown) {
       setErrorMsg(err instanceof Error ? err.message : 'Error loading details');
@@ -69,7 +75,7 @@ export default function IncidentDetailPage({
     if (!activeContext) return;
     loadIncident(incidentId, activeContext)
       .then((nextIncident) => {
-        if (!cancelled) setIncident(nextIncident);
+        if (!cancelled) { setIncident(nextIncident); setErrorMsg(null); }
       })
       .catch((error: unknown) => {
         if (!cancelled) {
@@ -86,7 +92,8 @@ export default function IncidentDetailPage({
 
   const handleClarificationSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!incident) return;
+    if (!incident?.isReporter || !activeContext) return;
+    setActionError(null);
     setIsSubmittingClarification(true);
 
     try {
@@ -106,16 +113,17 @@ export default function IncidentDetailPage({
       setClarificationAnswer('');
       await fetchIncident();
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : 'Failed');
+      setActionError(err instanceof Error ? err.message : 'Could not submit clarification');
     } finally {
       setIsSubmittingClarification(false);
     }
   };
 
   const handleVerificationDecision = async (decision: 'accepted' | 'rejected') => {
-    if (!incident) return;
-    if (decision === 'rejected' && !verificationReason.trim()) {
-      alert('Please provide a specific reason why the issue is not fixed.');
+    if (!incident?.isReporter || !activeContext) return;
+    setActionError(null);
+    if (decision === 'rejected' && verificationReason.trim().length < 5) {
+      setActionError('Please provide a rejection reason of at least 5 characters.');
       return;
     }
 
@@ -139,7 +147,7 @@ export default function IncidentDetailPage({
       setVerificationReason('');
       await fetchIncident();
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : 'Confirmation error');
+      setActionError(err instanceof Error ? err.message : 'Confirmation could not be completed');
     } finally {
       setIsSubmittingVerification(false);
     }
@@ -164,8 +172,9 @@ export default function IncidentDetailPage({
         <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-red-700">
           <h2 className="font-bold">Unable to display incident</h2>
           <p className="text-sm mt-1">{errorMsg || 'Not found or access denied.'}</p>
-          <Link href="/student" className="mt-3 inline-block text-xs font-semibold text-red-800 underline">
-            ← Back to Campus Feed
+          <button type="button" onClick={fetchIncident} className="mt-3 mr-4 text-sm font-semibold underline">Retry loading incident</button>
+          <Link href={dashboardHref} className="mt-3 inline-block text-xs font-semibold text-red-800 underline">
+            ← Back to Dashboard
           </Link>
         </div>
       </div>
@@ -176,12 +185,13 @@ export default function IncidentDetailPage({
     <div className="max-w-3xl mx-auto p-6 space-y-6">
       {/* Header breadcrumb */}
       <div className="flex items-center justify-between text-xs text-gray-500">
-        <Link href="/student" className="hover:text-indigo-600 font-medium">
-          ← Back to Incident Feed
+        <Link href={dashboardHref} className="hover:text-indigo-600 font-medium">
+          ← Back to Dashboard
         </Link>
         <span className="font-mono">Ref: {incident.id.slice(0, 8)}</span>
       </div>
 
+      {actionError && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">{actionError}</p>}
       {/* Main card */}
       <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200 space-y-4">
         <div className="flex items-start justify-between gap-4">
@@ -196,10 +206,10 @@ export default function IncidentDetailPage({
             </p>
           </div>
 
-          <div className="text-right">
+          {!incident.isConfidential && <div className="text-right">
             <div className="text-2xl font-black text-indigo-600">▲ {incident.voteCount}</div>
             <div className="text-[10px] text-gray-400 uppercase tracking-wider">Student Impact Votes</div>
-          </div>
+          </div>}
         </div>
 
         {/* AI Triage Diagnosis */}
@@ -214,7 +224,7 @@ export default function IncidentDetailPage({
         )}
 
         {/* Clarification Drawer */}
-        {incident.state === 'needs_clarification' && incident.clarificationRequest && (
+        {incident.isReporter && incident.state === 'needs_clarification' && incident.clarificationRequest && (
           <div className="p-5 bg-amber-50 border border-amber-300 rounded-xl space-y-3">
             <div className="flex items-center gap-2 text-amber-900 font-bold text-sm">
               <span>⚠️</span>
@@ -243,7 +253,7 @@ export default function IncidentDetailPage({
         )}
 
         {/* Reporter Verification Drawer (C1) */}
-        {incident.state === 'submitted_for_verification' && (
+        {incident.isReporter && incident.state === 'submitted_for_verification' && (
           <div className="p-5 bg-emerald-50 border border-emerald-300 rounded-xl space-y-3">
             <div className="flex items-center gap-2 text-emerald-900 font-bold text-sm">
               <span>🔍</span>
@@ -269,7 +279,7 @@ export default function IncidentDetailPage({
                   onClick={() => handleVerificationDecision('accepted')}
                   className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-xs transition flex-1"
                 >
-                  ✓ Accept & Close Incident
+                  ✓ Confirm Repair
                 </button>
                 <button
                   type="button"

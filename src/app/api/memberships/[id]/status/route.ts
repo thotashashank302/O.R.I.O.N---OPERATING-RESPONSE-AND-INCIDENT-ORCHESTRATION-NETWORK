@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/server/db/client";
 import { MembershipStatusPatchSchema } from "@/contracts/identity";
-import { requireRequestContext } from "@/server/auth/request-context";
+import { requireRequestContext, authorizationFailure } from "@/server/auth/request-context";
 
 export async function PATCH(
   req: NextRequest,
@@ -51,6 +51,8 @@ export async function PATCH(
 
     return NextResponse.json({ data: updated, requestId });
   } catch (err: unknown) {
+    const authFailure = authorizationFailure(err);
+    if (authFailure) return authFailure;
     return NextResponse.json(
       { error: { code: "SERVER_ERROR", message: err instanceof Error ? err.message : "Failed to update membership status" }, requestId },
       { status: 500 }

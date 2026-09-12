@@ -15,7 +15,7 @@ export async function enqueueCommanderJob(
     .single();
   if (incidentError || !incident) throw new Error("Incident not found for Commander job");
 
-  const [{ data: capabilities }, { data: latestPlan }] = await Promise.all([
+  const [{ data: capabilities, error: capabilitiesError }, { data: latestPlan, error: planError }] = await Promise.all([
     db.from("staff_capabilities").select("skills").eq("institution_id", incident.institution_id),
     db.from("incident_plans")
       .select("id,version,priority,explanation,acknowledgement_minutes")
@@ -24,27 +24,25 @@ export async function enqueueCommanderJob(
       .limit(1)
       .maybeSingle(),
   ]);
+  if (capabilitiesError) throw capabilitiesError;
+  if (planError) throw planError;
   const eligibleProfiles = [...new Set((capabilities ?? []).flatMap((item) => item.skills ?? []))];
   if (eligibleProfiles.length === 0) {
-    await db.from("incident_events").insert({
-      institution_id: incident.institution_id,
-      incident_id: incident.id,
-      actor_type: "system",
-      action: "commander_waiting_for_staff_profiles",
-      safe_payload: { failure_reason: failureReason },
-    });
-    return null;
+    throw new Error("No staff profiles available; Commander enqueue will retry");
   }
 
   let priorPlan = null;
   if (latestPlan) {
-    const { data: tasks } = await db.from("incident_tasks")
+    const { data: tasks, error: tasksError } = await db.from("incident_tasks")
       .select("local_id,logical_task_key,specialist_profile,goal,evidence_requirements,requires_approval")
       .eq("plan_id", latestPlan.id);
-    const { data: dependencies } = await db.from("task_dependencies")
+    const { data: dependencies, error: dependenciesError } = await db.from("task_dependencies")
       .select("task_id,prerequisite_task_id")
       .eq("institution_id", incident.institution_id);
-    const { data: taskIds } = await db.from("incident_tasks").select("id,local_id").eq("plan_id", latestPlan.id);
+    const { data: taskIds, error: taskIdsError } = await db.from("incident_tasks").select("id,local_id").eq("plan_id", latestPlan.id);
+    if (tasksError) throw tasksError;
+    if (dependenciesError) throw dependenciesError;
+    if (taskIdsError) throw taskIdsError;
     const localById = new Map((taskIds ?? []).map((task) => [task.id, task.local_id]));
     const depsByTask = new Map<string, string[]>();
     for (const dependency of dependencies ?? []) {
@@ -88,13 +86,17 @@ export async function enqueueCommanderJob(
     priorPlan,
     failureReason,
   };
-  const { data, error } = await db.from("jobs").insert({
+  const dedupeKey = dedupeSuffix?.startsWith("operation-") ? `commander:${dedupeSuffix}` : `commander:${incident.id}:v${incident.version}:${dedupeSuffix ?? "plan"}`;
+  const { data, error } = await db.from("jobs").upsert({
     institution_id: incident.institution_id,
     incident_id: incident.id,
     type: "commander",
-    dedupe_key: `commander:${incident.id}:v${incident.version}:${dedupeSuffix ?? "plan"}`,
+    dedupe_key: dedupeKey,
     payload,
-  }).select("id").single();
+  }, { onConflict: "dedupe_key", ignoreDuplicates: true }).select("id").maybeSingle();
   if (error) throw error;
-  return data;
+  if (data) return data;
+  const existing = await db.from("jobs").select("id").eq("dedupe_key", dedupeKey).single();
+  if (existing.error) throw existing.error;
+  return existing.data;
 }

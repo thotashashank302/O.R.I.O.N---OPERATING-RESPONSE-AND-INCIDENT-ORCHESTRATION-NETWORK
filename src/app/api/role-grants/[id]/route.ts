@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revokeRole } from "@/server/identity/roles";
-import { requireRequestContext } from "@/server/auth/request-context";
+import { requireRequestContext, authorizationFailure } from "@/server/auth/request-context";
 
 export async function PATCH(
   req: NextRequest,
@@ -44,6 +44,8 @@ export async function PATCH(
 
     return NextResponse.json({ data: { success: true, grant_id: id }, requestId });
   } catch (err: unknown) {
+    const authFailure = authorizationFailure(err);
+    if (authFailure) return authFailure;
     return NextResponse.json(
       { error: { code: "SERVER_ERROR", message: err instanceof Error ? err.message : "Failed to revoke role" }, requestId },
       { status: 500 }

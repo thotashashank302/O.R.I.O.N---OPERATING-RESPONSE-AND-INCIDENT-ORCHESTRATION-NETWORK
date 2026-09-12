@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { approveInstitution } from "@/server/identity/institutions";
-import { requireRequestContext } from "@/server/auth/request-context";
+import { requireRequestContext, authorizationFailure } from "@/server/auth/request-context";
 import { AuthorizationError } from "@/server/auth/authorization";
 
 export async function POST(
@@ -26,6 +26,8 @@ export async function POST(
 
     return NextResponse.json({ data: result.data, requestId });
   } catch (err: unknown) {
+    const authFailure = authorizationFailure(err);
+    if (authFailure) return authFailure;
     if (err instanceof AuthorizationError || (err instanceof Error && err.message === "UNAUTHENTICATED")) {
       const code = err instanceof AuthorizationError ? err.code : "UNAUTHENTICATED";
       return NextResponse.json(

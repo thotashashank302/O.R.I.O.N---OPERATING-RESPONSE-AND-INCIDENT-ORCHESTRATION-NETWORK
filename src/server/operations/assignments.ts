@@ -24,6 +24,7 @@ interface AssignmentTaskRow {
     incident?: {
       id: string;
       category: string;
+      location_text: string | null;
       severity: "critical" | "high" | "normal" | "low";
       state: IncidentState;
       version: number;
@@ -83,6 +84,7 @@ export async function getStaffAssignments(
           incident:incidents (
             id,
             category,
+            location_text,
             severity,
             state,
             version,
@@ -136,10 +138,10 @@ export async function getStaffAssignments(
       incident: incident
         ? {
             id: incident.id,
-            title: `${incident.category} — ${incident.campus_locations?.label ?? "Unknown location"}`,
+            title: `${incident.category} — ${incident.campus_locations?.label || incident.location_text || "Location not specified"}`,
             category: incident.category,
             severity: incident.severity,
-            location_label: incident.campus_locations?.label ?? "",
+            location_label: incident.campus_locations?.label || incident.location_text || "Location not specified",
             state: incident.state,
             version: incident.version,
           }

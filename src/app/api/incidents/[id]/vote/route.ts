@@ -1,6 +1,7 @@
+import { workflowFailure } from '@/server/reporting/persistence-errors';
 import { NextRequest } from 'next/server';
 import { jsonSuccess, jsonError } from '@/server/http-envelope';
-import { requireRequestContext } from '@/server/auth/request-context';
+import { requireRequestContext, authorizationFailure } from '@/server/auth/request-context';
 import { setPersistentVote } from '@/server/reporting/persistent-service';
 
 export async function PUT(
@@ -14,6 +15,10 @@ export async function PUT(
     const result = await setPersistentVote(context, id, true);
     return jsonSuccess(result);
   } catch (err: unknown) {
+    const authFailure = authorizationFailure(err);
+    if (authFailure) return authFailure;
+    const persistenceFailure = workflowFailure(err);
+    if (persistenceFailure) return persistenceFailure;
     const message = err instanceof Error ? err.message : 'Failed to cast vote';
     if (message.includes('Rate limit')) {
       return jsonError('RATE_LIMITED', message, 429);
@@ -39,6 +44,10 @@ export async function DELETE(
     const result = await setPersistentVote(context, id, false);
     return jsonSuccess(result);
   } catch (err: unknown) {
+    const authFailure = authorizationFailure(err);
+    if (authFailure) return authFailure;
+    const persistenceFailure = workflowFailure(err);
+    if (persistenceFailure) return persistenceFailure;
     const message = err instanceof Error ? err.message : 'Failed to remove vote';
     return jsonError('SERVER_ERROR', message, 500);
   }

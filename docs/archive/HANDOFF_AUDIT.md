@@ -30,8 +30,8 @@ Removed because they were unused scaffold assets: the five default Next/Vercel S
 Retained intentionally:
 
 - `node_modules/` and `.next/` are reproducible local dependencies/build output and remain ignored. They may be deleted locally for disk space, but are not source-control clutter.
-- `supabase/migrations/drafts/20260904_identity_schema.sql` remains as D2 handoff provenance because progress documentation references it; production applies only timestamped migrations.
-- `docs/progress/` and `docs/integration-status.md` remain audit evidence required by the handoff.
+- `docs/archive/schema-drafts/20260904_identity_schema.sql` remains as D2 handoff provenance because progress documentation references it; production applies only timestamped migrations.
+- `docs/archive/progress/` and `docs/archive/integration-status.md` remain audit evidence required by the handoff.
 - `.impeccable/review/` remains visual QA evidence and is refreshed by Playwright.
 
 ## Honest release boundary

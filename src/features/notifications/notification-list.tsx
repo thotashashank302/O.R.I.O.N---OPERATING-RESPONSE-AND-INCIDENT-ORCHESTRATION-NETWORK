@@ -19,23 +19,27 @@ export function NotificationList({
   async function markRead(notification: Notification) {
     if (notification.readAt) return;
     setError(null);
-    const response = await fetch("/api/notifications", {
-      method: "PATCH",
-      headers: {
-        "content-type": "application/json",
-        "x-orion-institution-id": institutionId,
-        "x-orion-membership-id": membershipId,
-      },
-      body: JSON.stringify({ notificationId: notification.id, expectedVersion: notification.version }),
-    });
-    const payload = await response.json();
-    if (!response.ok) {
-      setError(payload?.error?.message ?? "The notification could not be updated.");
-      return;
+    try {
+      const response = await fetch("/api/notifications", {
+        method: "PATCH",
+        headers: {
+          "content-type": "application/json",
+          "x-orion-institution-id": institutionId,
+          "x-orion-membership-id": membershipId,
+        },
+        body: JSON.stringify({ notificationId: notification.id, expectedVersion: notification.version }),
+      });
+      const payload = await response.json();
+      if (!response.ok) {
+        setError(payload?.error?.message ?? "The notification could not be updated.");
+        return;
+      }
+      setNotifications((current) => current.map((item) => item.id === notification.id
+        ? { ...item, readAt: payload.data.readAt, version: payload.data.version }
+        : item));
+    } catch {
+      setError("The notification could not be updated. Check your connection and try again.");
     }
-    setNotifications((current) => current.map((item) => item.id === notification.id
-      ? { ...item, readAt: payload.data.readAt, version: payload.data.version }
-      : item));
   }
 
   if (notifications.length === 0) {

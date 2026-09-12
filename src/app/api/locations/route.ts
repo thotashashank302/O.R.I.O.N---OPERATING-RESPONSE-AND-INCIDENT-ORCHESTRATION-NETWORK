@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createLocation, listLocations } from "@/server/identity/locations";
-import { requireRequestContext } from "@/server/auth/request-context";
+import { requireRequestContext, authorizationFailure } from "@/server/auth/request-context";
 
 export async function GET(req: NextRequest) {
   const requestId = crypto.randomUUID();
@@ -12,6 +12,8 @@ export async function GET(req: NextRequest) {
     const locations = await listLocations(context.institutionId, kind);
     return NextResponse.json({ data: locations, requestId });
   } catch (err: unknown) {
+    const authFailure = authorizationFailure(err);
+    if (authFailure) return authFailure;
     return NextResponse.json(
       { error: { code: "SERVER_ERROR", message: err instanceof Error ? err.message : "Failed to fetch locations" }, requestId },
       { status: 500 }
@@ -34,6 +36,8 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ data: result.data, requestId }, { status: 201 });
   } catch (err: unknown) {
+    const authFailure = authorizationFailure(err);
+    if (authFailure) return authFailure;
     return NextResponse.json(
       { error: { code: "SERVER_ERROR", message: err instanceof Error ? err.message : "Failed to create location" }, requestId },
       { status: 500 }

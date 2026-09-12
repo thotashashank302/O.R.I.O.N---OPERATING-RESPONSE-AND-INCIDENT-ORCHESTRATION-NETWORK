@@ -3,7 +3,7 @@ import { z } from "zod";
 import { fail, ok } from "@/contracts/http";
 import { createSupabaseAdmin } from "@/server/db/supabase-admin";
 import { createSupabaseSessionClient } from "@/server/auth/supabase-session";
-import { requireRequestContext } from "@/server/auth/request-context";
+import { requireRequestContext, authorizationFailure } from "@/server/auth/request-context";
 
 const idSchema = z.string().uuid();
 
@@ -22,6 +22,8 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
     if (error) throw error;
     return ok((data ?? []).map((event) => ({ id: event.id, actorType: event.actor_type, action: event.action, safePayload: event.safe_payload, createdAt: event.created_at })), requestId);
   } catch (error) {
+    const authFailure = authorizationFailure(error);
+    if (authFailure) return authFailure;
     const unauthenticated = error instanceof Error && error.message === "UNAUTHENTICATED";
     return fail(unauthenticated ? "UNAUTHENTICATED" : "FORBIDDEN", unauthenticated ? "Authentication required" : "Selected membership is unavailable", requestId, unauthenticated ? 401 : 403);
   }

@@ -3,7 +3,7 @@ import {
   createIncident,
   IncidentRepository,
   resetRateLimitsForTesting,
-} from '@/server/reporting/intake-service';
+} from '../fixtures/reporting/intake-service';
 import {
   authorizePrivateUpload,
 } from '@/server/reporting/upload-service';
@@ -11,18 +11,18 @@ import {
   castVote,
   removeVote,
   resetVotesForTesting,
-} from '@/server/reporting/voting-service';
+} from '../fixtures/reporting/voting-service';
 import {
   createPrivateConfidentialReport,
   canViewConfidentialIncident,
-} from '@/server/reporting/private-intake-service';
+} from '../fixtures/reporting/private-intake-service';
 import {
   submitClarificationAnswer,
-} from '@/server/reporting/clarification-service';
+} from '../fixtures/reporting/clarification-service';
 import {
   submitReporterConfirmation,
   cancelIncidentByReporter,
-} from '@/server/reporting/confirmation-service';
+} from '../fixtures/reporting/confirmation-service';
 
 describe('Developer 3: Reporting, Voting & Verification Lifecycle (P0 Suite)', () => {
   const institutionId = '11111111-1111-4111-a111-111111111111';
@@ -105,7 +105,7 @@ describe('Developer 3: Reporting, Voting & Verification Lifecycle (P0 Suite)', (
         fileName: 'broken_bench.jpg',
         fileSize: 2 * 1024 * 1024,
         mimeType: 'image/jpeg',
-      }, { signUpload: async (key) => `https://storage.test/${key}` });
+      }, { consumeAttempt: async () => true, signUpload: async (key) => `https://storage.test/${key}` });
 
       expect(result.uploadUrl).toContain('storage.test');
       expect(result.storageKey).toContain(institutionId);

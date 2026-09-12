@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { INCIDENT_CATEGORIES, IncidentCategory, UPLOAD_LIMITS } from '@/contracts/reporting';
 
 interface ReportFormProps {
@@ -92,6 +92,9 @@ export default function ReportForm({
   onSuccess,
   defaultScope = 'student',
 }: ReportFormProps) {
+  // Retain the exact submitted payload after an uncertain response, including
+  // uploaded object keys. A retry must not upload again or create a second report.
+  const pendingSubmission = useRef<{ fingerprint: string; payload: string } | null>(null);
   const [category, setCategory] = useState<IncidentCategory>('classroom_infrastructure');
   const [description, setDescription] = useState('');
   const [locationText, setLocationText] = useState('');
@@ -138,6 +141,12 @@ export default function ReportForm({
     setIsSubmitting(true);
 
     try {
+      const fingerprint = JSON.stringify({ description, locationText, category, isConfidential, accusedId, defaultScope,
+        files: files.map((file) => [file.name, file.size, file.lastModified]) });
+      if (pendingSubmission.current && pendingSubmission.current.fingerprint !== fingerprint) {
+        throw new Error('A previous submission has an uncertain result. Restore the submitted details and retry, or check your incident list before starting a new report.');
+      }
+      if (!pendingSubmission.current) {
       const attachments = await Promise.all(files.map(async (file) => {
         const authorization = await fetch('/api/uploads', {
           method: 'POST',
@@ -168,6 +177,7 @@ export default function ReportForm({
       }));
 
       const payload = {
+        operationId: crypto.randomUUID(),
         description: description.trim(),
         locationText: locationText.trim(),
         categorySuggestion: category,
@@ -179,6 +189,8 @@ export default function ReportForm({
         attachments,
       };
 
+      pendingSubmission.current = { fingerprint, payload: JSON.stringify(payload) };
+      }
       const res = await fetch('/api/incidents', {
         method: 'POST',
         headers: {
@@ -186,7 +198,7 @@ export default function ReportForm({
           'x-orion-institution-id': institutionId,
           'x-orion-membership-id': memberId,
         },
-        body: JSON.stringify(payload),
+        body: pendingSubmission.current.payload,
       });
 
       const data = (await res.json()) as {
@@ -195,10 +207,12 @@ export default function ReportForm({
       };
 
       if (!res.ok) {
+        if ([400, 401, 403, 422, 429].includes(res.status)) pendingSubmission.current = null;
         throw new Error(data.error?.message || 'Failed to submit incident report');
       }
 
       if (!data.data) throw new Error('Server returned an incomplete incident response');
+      pendingSubmission.current = null;
       setSuccessInfo(data.data);
       setDescription('');
       setLocationText('');

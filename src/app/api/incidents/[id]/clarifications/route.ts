@@ -1,8 +1,9 @@
+import { workflowFailure } from '@/server/reporting/persistence-errors';
 import { kickWorker } from "@/server/orchestration/kick";
 export const maxDuration = 300;
 import { NextRequest } from 'next/server';
 import { jsonSuccess, jsonError } from '@/server/http-envelope';
-import { requireRequestContext } from '@/server/auth/request-context';
+import { requireRequestContext, authorizationFailure } from '@/server/auth/request-context';
 import { clarifyPersistentIncident } from '@/server/reporting/persistent-service';
 
 export async function POST(
@@ -28,6 +29,10 @@ export async function POST(
     kickWorker("incident-update");
     return jsonSuccess({ incident: result.incident, job: result.job });
   } catch (err: unknown) {
+    const authFailure = authorizationFailure(err);
+    if (authFailure) return authFailure;
+    const persistenceFailure = workflowFailure(err);
+    if (persistenceFailure) return persistenceFailure;
     const message = err instanceof Error ? err.message : 'Error submitting clarification';
     if (message.includes('Version mismatch')) {
       return jsonError('CONFLICT', message, 409);

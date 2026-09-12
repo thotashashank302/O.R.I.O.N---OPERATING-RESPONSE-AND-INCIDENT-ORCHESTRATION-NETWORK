@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { fail, ok } from "@/contracts/http";
 import { createSupabaseAdmin } from "@/server/db/supabase-admin";
-import { requireRequestContext } from "@/server/auth/request-context";
+import { requireRequestContext, authorizationFailure } from "@/server/auth/request-context";
 import { notificationSchema } from "@/features/notifications/contracts";
 
 const updateSchema = z.object({ notificationId: z.string().uuid(), expectedVersion: z.number().int().positive() }).strict();
@@ -20,6 +20,8 @@ export async function GET(request: Request) {
     const notifications = z.array(notificationSchema).parse((data ?? []).map((item) => ({ id: item.id, safeText: item.safe_text, link: item.link, readAt: item.read_at, createdAt: item.created_at, version: item.version })));
     return ok(notifications, requestId);
   } catch (error) {
+    const authFailure = authorizationFailure(error);
+    if (authFailure) return authFailure;
     const unauthenticated = error instanceof Error && error.message === "UNAUTHENTICATED";
     return fail(unauthenticated ? "UNAUTHENTICATED" : "FORBIDDEN", unauthenticated ? "Authentication required" : "Selected membership is unavailable", requestId, unauthenticated ? 401 : 403);
   }
@@ -42,6 +44,8 @@ export async function PATCH(request: Request) {
     if (!data) return fail("STALE_CONTEXT", "Notification changed or is unavailable", requestId, 409);
     return ok({ id: data.id, readAt: data.read_at, version: data.version }, requestId);
   } catch (error) {
+    const authFailure = authorizationFailure(error);
+    if (authFailure) return authFailure;
     const unauthenticated = error instanceof Error && error.message === "UNAUTHENTICATED";
     return fail(unauthenticated ? "UNAUTHENTICATED" : "FORBIDDEN", unauthenticated ? "Authentication required" : "Selected membership is unavailable", requestId, unauthenticated ? 401 : 403);
   }

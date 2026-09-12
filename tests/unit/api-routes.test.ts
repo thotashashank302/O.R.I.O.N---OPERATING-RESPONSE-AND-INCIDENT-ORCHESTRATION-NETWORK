@@ -7,6 +7,7 @@ vi.mock('next/server', async (importOriginal) => ({
 vi.mock('@/server/orchestration/production-worker', () => ({ createProductionWorker: vi.fn() }));
 
 vi.mock('@/server/auth/request-context', () => ({
+  authorizationFailure: vi.fn(() => null),
   requireRequestContext: vi.fn(async (request: Request) => ({
     requestId: 'test-request',
     userId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
@@ -61,6 +62,7 @@ describe('Developer 3: API Route Endpoints (HTTP Contract Compliance)', () => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
+        operationId: '55555555-5555-4555-a555-555555555555',
         description: 'AC in Computer Lab 3 is leaking water continuously.',
         locationText: 'Room 304, Computer Lab 3',
         categorySuggestion: 'lab_equipment',
@@ -85,6 +87,7 @@ describe('Developer 3: API Route Endpoints (HTTP Contract Compliance)', () => {
         'x-member-id': memberId,
       },
       body: JSON.stringify({
+        operationId: '55555555-5555-4555-a555-555555555555',
         description: 'Broken bench in Classroom 101.',
         locationText: 'Room 101, Main Block',
       }),

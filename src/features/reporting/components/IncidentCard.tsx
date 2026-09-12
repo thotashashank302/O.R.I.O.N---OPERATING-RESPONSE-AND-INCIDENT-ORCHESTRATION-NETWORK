@@ -7,6 +7,7 @@ import IncidentVoteButton from '@/features/voting/components/IncidentVoteButton'
 export interface IncidentSummaryProps {
   incident: {
     id: string;
+    reporterId?: string;
     category: string;
     description: string;
     locationText: string;
@@ -74,7 +75,7 @@ export default function IncidentCard({ incident, institutionId, memberId }: Inci
         </p>
       </div>
 
-      {incident.clarificationRequest && (
+      {incident.reporterId === memberId && incident.clarificationRequest && (
         <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-800 space-y-2">
           <div className="flex items-start gap-1.5">
             <span>⚠️</span>
@@ -94,7 +95,7 @@ export default function IncidentCard({ incident, institutionId, memberId }: Inci
         </div>
       )}
 
-      {incident.state === 'submitted_for_verification' && (
+      {incident.reporterId === memberId && incident.state === 'submitted_for_verification' && (
         <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-xs text-emerald-800 space-y-2">
           <div className="flex items-start gap-1.5">
             <span>🔍</span>
