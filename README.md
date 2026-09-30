@@ -64,7 +64,9 @@ in-memory reporting models live exclusively in test fixtures.
 ## Demo access
 
 These accounts belong to the existing controlled demo database. They are not
-created automatically by installing the project. Password: `OrionDemo2026!`.
+created automatically by installing the project. Obtain demo credentials from
+the approved project administrator or secret manager; do not commit passwords
+or tokens to this repository.
 
 | Role | Email | Dashboard |
 | --- | --- | --- |
@@ -96,14 +98,6 @@ The isolated PostgreSQL security runner and its setup are documented in
 [Security remediation](docs/SECURITY_REMEDIATION.md). `scripts/check-live-model.ts`
 is an optional live provider diagnostic. `scripts/seed-demo.ts` writes demo
 institution structure; it does not provision the login accounts above.
-
-## Documentation
-
-- [API contract](docs/API_CONTRACT.md) and [team ownership](docs/OWNERSHIP.md)
-- [Product scope](docs/PRODUCT.md) and [visual design](docs/DESIGN.md)
-- [Security remediation and database validation](docs/SECURITY_REMEDIATION.md)
-- [Browser debugging results](docs/BROWSER_DEBUG_REVIEW.md)
-- [Historical handoff archive](docs/archive/README.md)
 
 ## Sharing and disk space
 
