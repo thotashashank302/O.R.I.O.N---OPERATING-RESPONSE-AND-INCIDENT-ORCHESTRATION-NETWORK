@@ -65,16 +65,25 @@ flowchart TD
     WORK["Staff perform work<br/>and submit evidence"]
     VERIFICATION["04 · VERIFICATION AGENT<br/>Check required evidence"]
     HUMAN["Designated human verifier<br/>inspects current evidence"]
-    DONE(["Task verified<br/>Close incident when all tasks pass"])
+    COMPLETE{"All tasks<br/>verified?"}
+    DONE(["Incident resolved<br/>with audit trail"])
+    REPLAN["Replan<br/>using current context"]
 
     REPORT --> TRIAGE
     TRIAGE --> COMMANDER
     COMMANDER --> SPECIALIST
     SPECIALIST --> APPROVE
-    APPROVE --> WORK
+    APPROVE -->|Allowed| WORK
     WORK --> VERIFICATION
-    VERIFICATION --> HUMAN
-    HUMAN -->|Accepted| DONE
+    VERIFICATION -->|Human review| HUMAN
+    HUMAN -->|Accepted| COMPLETE
+    COMPLETE -->|Yes| DONE
+    COMPLETE -->|No: next ready task| SPECIALIST
+
+    APPROVE -.->|Rejected| REPLAN
+    VERIFICATION -.->|Evidence failed| REPLAN
+    HUMAN -.->|Rejected| REPLAN
+    REPLAN -.->|New plan| COMMANDER
 
     classDef triage fill:#DBEAFE,stroke:#2563EB,color:#172554,stroke-width:3px
     classDef commander fill:#E0E7FF,stroke:#4F46E5,color:#1E1B4B,stroke-width:3px
@@ -83,6 +92,8 @@ flowchart TD
     classDef human fill:#F3E8FF,stroke:#9333EA,color:#3B0764,stroke-width:2px
     classDef neutral fill:#F1F5F9,stroke:#64748B,color:#0F172A,stroke-width:2px
     classDef complete fill:#DCFCE7,stroke:#16A34A,color:#14532D,stroke-width:3px
+    classDef decision fill:#FFF7ED,stroke:#EA580C,color:#431407,stroke-width:2px
+    classDef replan fill:#FEE2E2,stroke:#DC2626,color:#450A0A,stroke-width:2px
     class TRIAGE triage
     class COMMANDER commander
     class SPECIALIST specialist
@@ -90,6 +101,9 @@ flowchart TD
     class APPROVE,HUMAN human
     class REPORT,WORK neutral
     class DONE complete
+    class COMPLETE decision
+    class REPLAN replan
+    linkStyle 10,11,12,13 stroke:#DC2626,stroke-width:2px
 ```
 
 | Agent | Color | Responsibility | Implementation |
@@ -101,7 +115,7 @@ flowchart TD
 
 Purple human-review nodes are separate from the four agents. The Verification agent receives textual evidence and a private-photo placeholder; an authorized person inspects the actual photos. The current worker requires a human physical check and preserves a human decision before closure.
 
-This overview follows the forward handoff. Triage can pause for reporter clarification; rejected actions or evidence return to Commander for replanning, as shown in the detailed workflow above.
+Red dashed arrows show the feedback loop: rejected approvals, failed evidence checks or rejected human verification return to Commander for a new plan. Accepted work continues with the next ready Specialist task until every task is verified. Triage can also pause for reporter clarification, as shown in the detailed workflow above.
 
 ## How it fits together
 
