@@ -57,46 +57,39 @@ Physical, unknown, sensitive and high-risk categories require a human decision b
 
 ```mermaid
 flowchart TD
-    REPORT(["Campus incident report"]) --> TRIAGE
+    REPORT(["Campus incident report"])
+    TRIAGE["01 · TRIAGE AGENT<br/>Classify the report and risks"]
+    COMMANDER["02 · COMMANDER AGENT<br/>Plan task dependencies"]
+    SPECIALIST["03 · SPECIALIST AGENT<br/>Propose staff and checklist"]
+    APPROVE["Scoped human approval<br/>when required by policy"]
+    WORK["Staff perform work<br/>and submit evidence"]
+    VERIFICATION["04 · VERIFICATION AGENT<br/>Check required evidence"]
+    HUMAN["Designated human verifier<br/>inspects current evidence"]
+    DONE(["Task verified<br/>Close incident when all tasks pass"])
 
-    subgraph AGENTS["FOUR AGENT ROLES"]
-        TRIAGE["01 · TRIAGE AGENT<br/>Classify the report, flag risks<br/>and identify missing details"]
-        COMMANDER["02 · COMMANDER AGENT<br/>Build a bounded task plan<br/>with dependencies and evidence needs"]
-        SPECIALIST["03 · SPECIALIST AGENT<br/>Propose eligible staff<br/>and an actionable checklist"]
-        VERIFICATION["04 · VERIFICATION AGENT<br/>Review submitted evidence<br/>and flag missing requirements"]
-        TRIAGE -->|Incident context| COMMANDER
-        COMMANDER -->|Ready task| SPECIALIST
-    end
-
-    TRIAGE -.->|Details needed| CLARIFY["Reporter supplies clarification"]
-    CLARIFY --> COMMANDER
-    SPECIALIST --> GATE{"Human approval<br/>required by policy?"}
-    GATE -->|Yes| APPROVE["Scoped operator reviews<br/>the exact proposed action"]
-    APPROVE -->|Approve| WORK["Staff perform work<br/>and submit evidence"]
-    APPROVE -->|Reject and replan| COMMANDER
-    GATE -->|No| WORK
+    REPORT --> TRIAGE
+    TRIAGE --> COMMANDER
+    COMMANDER --> SPECIALIST
+    SPECIALIST --> APPROVE
+    APPROVE --> WORK
     WORK --> VERIFICATION
-    VERIFICATION --> HUMAN["Designated human verifier<br/>inspects the current evidence"]
-    HUMAN -->|Reject and replan| COMMANDER
-    HUMAN -->|Accept| DONE(["Task verified<br/>Close incident when all tasks pass"])
+    VERIFICATION --> HUMAN
+    HUMAN -->|Accepted| DONE
 
     classDef triage fill:#DBEAFE,stroke:#2563EB,color:#172554,stroke-width:3px
     classDef commander fill:#E0E7FF,stroke:#4F46E5,color:#1E1B4B,stroke-width:3px
     classDef specialist fill:#FEF3C7,stroke:#D97706,color:#451A03,stroke-width:3px
     classDef verification fill:#CCFBF1,stroke:#0D9488,color:#134E4A,stroke-width:3px
     classDef human fill:#F3E8FF,stroke:#9333EA,color:#3B0764,stroke-width:2px
-    classDef decision fill:#FFF7ED,stroke:#EA580C,color:#431407,stroke-width:2px
     classDef neutral fill:#F1F5F9,stroke:#64748B,color:#0F172A,stroke-width:2px
     classDef complete fill:#DCFCE7,stroke:#16A34A,color:#14532D,stroke-width:3px
     class TRIAGE triage
     class COMMANDER commander
     class SPECIALIST specialist
     class VERIFICATION verification
-    class CLARIFY,APPROVE,HUMAN human
-    class GATE decision
+    class APPROVE,HUMAN human
     class REPORT,WORK neutral
     class DONE complete
-    style AGENTS fill:#F8FAFC,stroke:#94A3B8,color:#0F172A,stroke-width:1px,stroke-dasharray:5 5
 ```
 
 | Agent | Color | Responsibility | Implementation |
@@ -107,6 +100,8 @@ flowchart TD
 | **Verification** | 🟢 Teal | Reviews evidence completeness and returns a bounded verdict for human review | [verification.ts](src/server/agents/verification.ts) |
 
 Purple human-review nodes are separate from the four agents. The Verification agent receives textual evidence and a private-photo placeholder; an authorized person inspects the actual photos. The current worker requires a human physical check and preserves a human decision before closure.
+
+This overview follows the forward handoff. Triage can pause for reporter clarification; rejected actions or evidence return to Commander for replanning, as shown in the detailed workflow above.
 
 ## How it fits together
 
