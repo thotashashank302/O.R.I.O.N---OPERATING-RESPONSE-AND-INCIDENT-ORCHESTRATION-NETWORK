@@ -2,7 +2,7 @@
 
 **Operating Response & Incident Orchestration Network** — accountable campus incident handling with bounded AI planning and human authorization.
 
-[Start locally](#run-locally) · [Architecture](#how-it-fits-together) · [Repository map](#repository-map) · [Verification](#verify-a-change) · [Deployment](docs/operations/deployment.md)
+[Four agents](#the-four-agents) · [Start locally](#run-locally) · [Architecture](#how-it-fits-together) · [Repository map](#repository-map) · [Verification](#verify-a-change) · [Deployment](docs/operations/deployment.md)
 
 The selected setup stays on Supabase Free and uses the existing local worker, with no paid scheduler configured. See the [free-plan operating guide](docs/operations/free-plan.md) for setup requirements and limits.
 
@@ -32,14 +32,86 @@ flowchart TD
     N -->|Accept| O{All tasks verified?}
     O -->|No| G
     O -->|Yes| P[Incident resolved with audit trail]
+
+    classDef intake fill:#DBEAFE,stroke:#2563EB,color:#172554,stroke-width:2px
+    classDef planning fill:#E0E7FF,stroke:#4F46E5,color:#1E1B4B,stroke-width:2px
+    classDef action fill:#FEF3C7,stroke:#D97706,color:#451A03,stroke-width:2px
+    classDef review fill:#CCFBF1,stroke:#0D9488,color:#134E4A,stroke-width:2px
+    classDef human fill:#F3E8FF,stroke:#9333EA,color:#3B0764,stroke-width:2px
+    classDef decision fill:#FFF7ED,stroke:#EA580C,color:#431407,stroke-width:2px
+    classDef complete fill:#DCFCE7,stroke:#16A34A,color:#14532D,stroke-width:3px
+    class A,B,C intake
+    class F planning
+    class G,J,K,L action
+    class M review
+    class E,I,N human
+    class D,H,O decision
+    class P complete
 ```
 
 Physical, unknown, sensitive and high-risk categories require a human decision before dispatch. Ordinary `other` work can bypass this gate only when its visibility and severity permit it. The database enforces the same floor as the application. AI cannot grant roles or independently confirm physical repairs.
 
+## The four agents
+
+**Triage → Commander → Specialist → Verification.** Each agent has a bounded job; the worker and database enforce the handoffs, and people retain approval and final verification.
+
+```mermaid
+flowchart TD
+    REPORT(["Campus incident report"]) --> TRIAGE
+
+    subgraph AGENTS["FOUR AGENT ROLES"]
+        TRIAGE["01 · TRIAGE AGENT<br/>Classify the report, flag risks<br/>and identify missing details"]
+        COMMANDER["02 · COMMANDER AGENT<br/>Build a bounded task plan<br/>with dependencies and evidence needs"]
+        SPECIALIST["03 · SPECIALIST AGENT<br/>Propose eligible staff<br/>and an actionable checklist"]
+        VERIFICATION["04 · VERIFICATION AGENT<br/>Review submitted evidence<br/>and flag missing requirements"]
+        TRIAGE -->|Incident context| COMMANDER
+        COMMANDER -->|Ready task| SPECIALIST
+    end
+
+    TRIAGE -.->|Details needed| CLARIFY["Reporter supplies clarification"]
+    CLARIFY --> COMMANDER
+    SPECIALIST --> GATE{"Human approval<br/>required by policy?"}
+    GATE -->|Yes| APPROVE["Scoped operator reviews<br/>the exact proposed action"]
+    APPROVE -->|Approve| WORK["Staff perform work<br/>and submit evidence"]
+    APPROVE -->|Reject and replan| COMMANDER
+    GATE -->|No| WORK
+    WORK --> VERIFICATION
+    VERIFICATION --> HUMAN["Designated human verifier<br/>inspects the current evidence"]
+    HUMAN -->|Reject and replan| COMMANDER
+    HUMAN -->|Accept| DONE(["Task verified<br/>Close incident when all tasks pass"])
+
+    classDef triage fill:#DBEAFE,stroke:#2563EB,color:#172554,stroke-width:3px
+    classDef commander fill:#E0E7FF,stroke:#4F46E5,color:#1E1B4B,stroke-width:3px
+    classDef specialist fill:#FEF3C7,stroke:#D97706,color:#451A03,stroke-width:3px
+    classDef verification fill:#CCFBF1,stroke:#0D9488,color:#134E4A,stroke-width:3px
+    classDef human fill:#F3E8FF,stroke:#9333EA,color:#3B0764,stroke-width:2px
+    classDef decision fill:#FFF7ED,stroke:#EA580C,color:#431407,stroke-width:2px
+    classDef neutral fill:#F1F5F9,stroke:#64748B,color:#0F172A,stroke-width:2px
+    classDef complete fill:#DCFCE7,stroke:#16A34A,color:#14532D,stroke-width:3px
+    class TRIAGE triage
+    class COMMANDER commander
+    class SPECIALIST specialist
+    class VERIFICATION verification
+    class CLARIFY,APPROVE,HUMAN human
+    class GATE decision
+    class REPORT,WORK neutral
+    class DONE complete
+    style AGENTS fill:#F8FAFC,stroke:#94A3B8,color:#0F172A,stroke-width:1px,stroke-dasharray:5 5
+```
+
+| Agent | Color | Responsibility | Implementation |
+| --- | --- | --- | --- |
+| **Triage** | 🔵 Blue | Classifies the report, checks location clarity, flags risk and possible duplicates | [triage.ts](src/server/agents/triage.ts) |
+| **Commander** | 🟣 Indigo | Plans up to five dependent tasks while respecting eligible profiles and the safety floor | [commander.ts](src/server/agents/commander.ts) |
+| **Specialist** | 🟠 Amber | Selects from eligible, available staff and proposes a checklist with required evidence | [specialist.ts](src/server/agents/specialist.ts) |
+| **Verification** | 🟢 Teal | Reviews evidence completeness and returns a bounded verdict for human review | [verification.ts](src/server/agents/verification.ts) |
+
+Purple human-review nodes are separate from the four agents. The Verification agent receives textual evidence and a private-photo placeholder; an authorized person inspects the actual photos. The current worker requires a human physical check and preserves a human decision before closure.
+
 ## How it fits together
 
 ```mermaid
-flowchart LR
+flowchart TD
     U[Browser and role dashboards] --> W[Next.js routes]
     W --> A[Fresh membership and scope checks]
     A --> T[Database transactions]
@@ -53,6 +125,17 @@ flowchart LR
     E --> H[Signed delivery webhooks]
     H --> W
     R --> D
+
+    classDef interface fill:#DBEAFE,stroke:#2563EB,color:#172554,stroke-width:2px
+    classDef trusted fill:#E0E7FF,stroke:#4F46E5,color:#1E1B4B,stroke-width:2px
+    classDef storage fill:#F1F5F9,stroke:#64748B,color:#0F172A,stroke-width:2px
+    classDef worker fill:#FEF3C7,stroke:#D97706,color:#451A03,stroke-width:2px
+    classDef provider fill:#CCFBF1,stroke:#0D9488,color:#134E4A,stroke-width:2px
+    class U,W interface
+    class A,T trusted
+    class D,S,Q storage
+    class C,R worker
+    class F,E,H provider
 ```
 
 | Boundary | Enforcement |
@@ -155,6 +238,19 @@ flowchart TD
     C -->|Process exits| H[Lease expires]
     H --> A
     G --> I[Operator investigates and selects recovery]
+
+    classDef worker fill:#DBEAFE,stroke:#2563EB,color:#172554,stroke-width:2px
+    classDef decision fill:#E0E7FF,stroke:#4F46E5,color:#1E1B4B,stroke-width:2px
+    classDef retry fill:#FEF3C7,stroke:#D97706,color:#451A03,stroke-width:2px
+    classDef failure fill:#FEE2E2,stroke:#DC2626,color:#450A0A,stroke-width:2px
+    classDef human fill:#F3E8FF,stroke:#9333EA,color:#3B0764,stroke-width:2px
+    classDef complete fill:#DCFCE7,stroke:#16A34A,color:#14532D,stroke-width:3px
+    class A,B,C worker
+    class D decision
+    class F,H retry
+    class G failure
+    class I human
+    class E complete
 ```
 
 `npm run local:start` runs the continuous local worker. No Vercel cron is configured: Hobby permits daily scheduling, which cannot satisfy this workflow's deadlines. Keep the worker machine awake and connected; stopping it pauses automation. See [free-plan operation](docs/operations/free-plan.md), [deployment and health checks](docs/operations/deployment.md), and [recovery procedures](docs/operations/recovery.md).
