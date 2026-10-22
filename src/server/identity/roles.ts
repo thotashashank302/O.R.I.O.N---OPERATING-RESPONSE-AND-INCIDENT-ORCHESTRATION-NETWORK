@@ -19,6 +19,11 @@ import {
   UserContextResponse,
 } from "@/contracts/identity";
 
+function isCurrentGrant(grant: { starts_at?: string; ends_at?: string | null }): boolean {
+  const now = Date.now();
+  return !!grant.starts_at && Date.parse(grant.starts_at) <= now && (!grant.ends_at || Date.parse(grant.ends_at) > now);
+}
+
 interface MembershipContextRow {
   id: string;
   institution_id: string;
@@ -110,12 +115,12 @@ export async function grantRole(
   // 4. Fetch grantor active roles
   const { data: grantorGrants } = await db
     .from("role_grants")
-    .select("role, department_id")
+    .select("role, department_id, starts_at, ends_at")
     .eq("membership_id", grantedByMembershipId)
     .is("revoked_at", null);
 
-  const grantorRoleList = (grantorGrants || []).map((g) => g.role as RoleEnum);
-  const grantorDeptId = grantorGrants?.find((g) => g.role === "hod")?.department_id;
+  const grantorRoleList = (grantorGrants || []).filter(isCurrentGrant).map((g) => g.role as RoleEnum);
+  const grantorDeptId = grantorGrants?.filter(isCurrentGrant).find((g) => g.role === "hod")?.department_id;
 
   if (!canGrantRole(grantorRoleList, parsed.data.role, grantorDeptId, parsed.data.department_id)) {
     return {
@@ -232,18 +237,18 @@ export async function revokeRole(
     .eq("id", revokedByMembershipId)
     .maybeSingle();
 
-  if (!revokerMembership || revokerMembership.status !== "active") {
+  if (!revokerMembership || revokerMembership.status !== "active" || revokerMembership.institution_id !== grant.institution_id) {
     return { success: false, error: "Revoker session is inactive or invalid." };
   }
 
   const { data: revokerGrants } = await db
     .from("role_grants")
-    .select("role, department_id")
+    .select("role, department_id, starts_at, ends_at")
     .eq("membership_id", revokedByMembershipId)
     .is("revoked_at", null);
 
-  const revokerRoles = (revokerGrants || []).map((g) => g.role as RoleEnum);
-  const revokerDeptId = revokerGrants?.find((g) => g.role === "hod")?.department_id;
+  const revokerRoles = (revokerGrants || []).filter(isCurrentGrant).map((g) => g.role as RoleEnum);
+  const revokerDeptId = revokerGrants?.filter(isCurrentGrant).find((g) => g.role === "hod")?.department_id;
 
   if (!canGrantRole(revokerRoles, grant.role as RoleEnum, revokerDeptId, grant.department_id)) {
     return { success: false, error: "Unauthorized: You cannot revoke this role grant." };
@@ -333,6 +338,8 @@ export async function getUserContexts(
       .from("role_grants")
       .select(`
         role,
+        starts_at,
+        ends_at,
         department_id,
         section_id,
         cr_seat,
@@ -348,7 +355,7 @@ export async function getUserContexts(
       institution_code: m.institutions.code,
       membership_id: m.id,
       membership_status: m.status,
-      roles: ((grants || []) as unknown as ContextGrantRow[]).map((g) => ({
+      roles: ((grants || []).filter(isCurrentGrant) as unknown as ContextGrantRow[]).map((g) => ({
         role: g.role,
         department_id: g.department_id,
         department_name: g.departments?.name || null,
@@ -402,11 +409,11 @@ export async function verifyActiveMembershipAndRole(
 
   const { data: grants } = await db
     .from("role_grants")
-    .select("role")
+    .select("role, starts_at, ends_at")
     .eq("membership_id", membershipId)
     .is("revoked_at", null);
 
-  const activeRoles = (grants || []).map((g) => g.role as RoleEnum);
+  const activeRoles = (grants || []).filter(isCurrentGrant).map((g) => g.role as RoleEnum);
 
   if (requiredRole && !activeRoles.includes(requiredRole) && !activeRoles.includes("admin") && !activeRoles.includes("principal")) {
     return { valid: false, error: `Required role '${requiredRole}' is not active on this account.` };

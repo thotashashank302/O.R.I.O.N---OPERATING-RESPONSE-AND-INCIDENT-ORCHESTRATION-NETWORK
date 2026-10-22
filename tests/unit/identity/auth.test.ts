@@ -233,7 +233,7 @@ describe("Identity & Auth Invariants (ID-01 & ID-04)", () => {
         select: vi.fn().mockReturnThis(),
         eq: vi.fn().mockReturnThis(),
         is: vi.fn().mockResolvedValue({
-          data: [{ role: "staff" }],
+          data: [{ role: "staff", starts_at: "2020-01-01T00:00:00Z", ends_at: null }],
           error: null,
         }),
         maybeSingle: vi.fn().mockResolvedValue({

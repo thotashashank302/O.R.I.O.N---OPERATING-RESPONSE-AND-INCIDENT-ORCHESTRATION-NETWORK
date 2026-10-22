@@ -142,6 +142,8 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
               </Link>
             );
           })}
+          <Link href="/approvals" className={pathname === "/approvals" ? "is-active" : undefined}><NavIcon name="evidence" /><span>Action approvals</span></Link>
+          <Link href="/verification" className={pathname === "/verification" ? "is-active" : undefined}><NavIcon name="evidence" /><span>My verification tasks</span></Link>
         </nav>
 
         <div className="orion-system-note">

@@ -5,7 +5,8 @@ test.setTimeout(60_000);
 const fixtureId = '11111111-1111-4111-a111-111111111111';
 const fixture = { id: fixtureId, reporterId: 'synthetic', category: 'facilities', description: 'Synthetic browser regression', locationText: 'Test room', state: 'reported', version: 1, voteCount: 0, hasVoted: false, isConfidential: false, visibility: 'routine', createdAt: '2026-09-12T00:00:00Z' };
 async function login(page: Page, role: 'student.aiml' | 'cr.aiml' | 'staff.electrician' | 'principal' = 'student.aiml') {
-  const response = await page.request.post('/api/auth/login', { data: { email: `${role}@orion-demo.edu`, password: 'OrionDemo2026!' } });
+  test.skip(!process.env.ORION_E2E_PASSWORD, 'Configure isolated authenticated browser accounts');
+  const response = await page.request.post('/api/auth/login', { data: { email: `${role}@${process.env.ORION_E2E_EMAIL_DOMAIN ?? 'orion-demo.edu'}`, password: process.env.ORION_E2E_PASSWORD! } });
   expect(response.ok()).toBeTruthy();
 }
 

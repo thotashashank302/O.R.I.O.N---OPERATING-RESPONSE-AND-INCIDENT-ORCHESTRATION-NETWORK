@@ -185,7 +185,7 @@ export async function runVerificationAgent(
           max_tokens: 1024,
           response_format: { type: "json_object" },
         }),
-        signal: AbortSignal.timeout(60_000), // 60s AI timeout
+        signal: AbortSignal.timeout(30_000), // Keep retries inside the worker invocation budget
       });
 
       if (response.status === 429 || response.status >= 500) {

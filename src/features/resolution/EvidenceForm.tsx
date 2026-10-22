@@ -84,7 +84,7 @@ export function EvidenceForm({
   async function submitEvidence(entry: EvidenceEntry) {
     const res = await fetch(`/api/tasks/${taskId}/evidence`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...(activeContext ? orionContextHeaders(activeContext) : {}) },
       body: JSON.stringify({
         kind: entry.kind,
         content: entry.content,
@@ -143,7 +143,7 @@ export function EvidenceForm({
         // Now trigger the submit action on the assignment
         const actionRes = await fetch(`/api/assignments/${assignmentId}/actions`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", ...(activeContext ? orionContextHeaders(activeContext) : {}) },
           body: JSON.stringify({
             action: "submit",
             expected_version: assignmentVersion,

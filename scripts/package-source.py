@@ -3,12 +3,12 @@ from pathlib import Path
 from zipfile import ZIP_DEFLATED, ZipFile
 
 ROOT = Path(__file__).resolve().parent.parent
-DIRECTORIES = ("src", "public", "scripts", "tests", "supabase", "docs")
+DIRECTORIES = ("src", "public", "scripts", "tests", "supabase", "docs", ".github")
 FILES = (
     "README.md", "AGENTS.md", "CLAUDE.md", ".env.example", ".gitignore", ".nvmrc",
     "package.json", "package-lock.json", "next-env.d.ts", "next.config.ts",
     "tsconfig.json", "eslint.config.mjs", "postcss.config.mjs",
-    "playwright.config.ts", "vitest.config.ts", "vercel.json",
+    "playwright.config.ts", "vitest.config.ts", "vercel.json", "compose.test.yaml",
 )
 EXCLUDED_DIRS = {"node_modules", ".next", ".git", ".temp", "__pycache__", "test-results", "coverage"}
 

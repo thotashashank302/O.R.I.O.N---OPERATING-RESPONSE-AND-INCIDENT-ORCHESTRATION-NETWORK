@@ -36,7 +36,7 @@ describe("Role Administration & Dual-Seat CR Invariants (ID-02 & CORE-02)", () =
       is: vi.fn().mockImplementation(() => ({
         maybeSingle: maybeSingleFn,
         then: (resolve: any) =>
-          resolve({ data: config.isData || [], error: null }),
+          resolve({ data: (config.isData || []).map((grant: any) => ({ starts_at: "2020-01-01T00:00:00Z", ends_at: null, ...grant })), error: null }),
       })),
     };
 
@@ -157,6 +157,7 @@ describe("Role Administration & Dual-Seat CR Invariants (ID-02 & CORE-02)", () =
         maybeSingleReturns: [
           {
             id: "grant-cr1",
+            institution_id: "inst-1",
             role: "cr",
             department_id: "dept-cs",
             section: "A",

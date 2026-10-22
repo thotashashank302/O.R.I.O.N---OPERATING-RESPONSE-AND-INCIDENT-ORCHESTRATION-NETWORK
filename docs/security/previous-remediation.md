@@ -45,6 +45,6 @@ The local suite alone does **not** establish real JWT/browser acceptance against
 
 ## Repeat the isolated SQL tests
 
-`scripts/test-security-db.mjs` connects only to `127.0.0.1:55439` using a dedicated test server (`postgres` / `local-test-only`), creates its own `orion_security_*` database, applies the actual migrations, runs assertions, and drops that test database. It never reads `.env` or a hosted connection URL. It needs a separately installed `pg` package; set `ORION_TEST_PG_MODULE` to that package's `lib/index.js` path. Native PostgreSQL binaries are deliberately excluded from the source package.
+`tests/integration/database.mjs` connects only to `127.0.0.1:55439` using a dedicated test server (`postgres` / `local-test-only`), creates its own `orion_security_*` database, applies the actual migrations, runs assertions, and drops that test database. It never reads `.env` or a hosted connection URL. It needs a separately installed `pg` package; set `ORION_TEST_PG_MODULE` to that package's `lib/index.js` path. Native PostgreSQL binaries are deliberately excluded from the source package.
 
 Reference for database function transactions and restricted invoker permissions: [Supabase database functions](https://supabase.com/docs/guides/database/functions).

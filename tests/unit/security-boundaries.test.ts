@@ -20,6 +20,7 @@ import { authorizePrivateUpload } from '@/server/reporting/upload-service';
 import { requireRequestContext, AuthorizationUnavailableError, authorizationFailure } from '@/server/auth/request-context';
 import { createPersistentIncident, confirmPersistentIncident, getPersistentIncident, listPersistentIncidents } from '@/server/reporting/persistent-service';
 import { createProductionWorker } from '@/server/orchestration/production-worker';
+vi.mock('@/server/orchestration/automation-auth', () => ({ isAutomationAuthorized: (request: Request) => request.headers.get('authorization') === 'Bearer test-automation-secret' }));
 import { POST as tick } from '@/app/api/automation/tick/route';
 
 const tenant='11111111-1111-4111-a111-111111111111';
@@ -68,10 +69,10 @@ describe('Atomic persistence failures',()=>{
   const timeout=new Error('Connection lost after commit');
   it('never replays reporter writes after an uncertain RPC result',async()=>{
     state.from.mockImplementation((table:string)=>queryResult(table==='incidents' ? {data:{id:incident,institution_id:tenant,reporter_membership_id:member,state:'submitted_for_verification',visibility:'routine',version:1},error:null} : {data:null,count:0,error:null}));
-    state.rpc.mockResolvedValue({data:null,error:timeout});
+    state.rpc.mockImplementation(async(name:string) => name === 'orion_get_incident' ? { data:{id:incident,institution_id:tenant,reporter_membership_id:member,state:'submitted_for_verification',visibility:'routine',version:1},error:null } : {data:null,error:timeout});
     await expect(confirmPersistentIncident(context,incident,'rejected','Still broken',1)).rejects.toMatchObject({status:503});
-    expect(state.rpc).toHaveBeenCalledTimes(1);
-    expect(state.from.mock.calls.map(call=>call[0])).toEqual(['incidents','incident_votes','incident_votes']);
+    expect(state.rpc.mock.calls.filter(call=>call[0]==='orion_confirm_incident')).toHaveLength(1);
+    expect(state.from).not.toHaveBeenCalled();
   });
   it('does not invoke triage if location lookup fails',async()=>{
     state.from.mockReturnValue(queryResult({data:null,error:timeout}));
@@ -111,26 +112,24 @@ it('automation returns a generic error and logs server details',async()=>{
 
 // A database outage is not a missing incident or a successful zero-vote response.
 describe('Reporting read failures', () => {
-  it('returns a retryable error when the incident lookup fails', async () => {
-    state.from.mockReturnValue(queryResult({ data: null, error: { message: 'private database detail' } }));
+  it('returns a retryable error when the authorized incident query fails', async () => {
+    state.rpc.mockResolvedValue({ data: null, error: { message: 'private database detail' } });
     await expect(getPersistentIncident(context, incident)).rejects.toMatchObject({ code: 'READ_UNAVAILABLE', status: 503 });
   });
-  it('returns a retryable error when the feed lookup fails', async () => {
-    state.from.mockReturnValue(queryResult({ data: null, error: { message: 'database offline' } }));
+  it('returns a retryable error when the authorized feed query fails', async () => {
+    state.rpc.mockResolvedValue({ data: null, error: { message: 'database offline' } });
     await expect(listPersistentIncidents(context)).rejects.toMatchObject({ status: 503 });
   });
   it('keeps a genuinely missing incident distinct from an outage', async () => {
-    state.from.mockReturnValue(queryResult({ data: null, error: null }));
+    state.rpc.mockResolvedValue({ data: null, error: null });
     await expect(getPersistentIncident(context, incident)).resolves.toBeNull();
-    expect(state.from).toHaveBeenCalledTimes(1);
+    expect(state.from).not.toHaveBeenCalled();
   });
-  it.each([0, 1])('does not invent vote facts when vote query %s fails', async failingQuery => {
-    let voteQuery = 0;
-    state.from.mockImplementation((table: string) => {
-      if (table === 'incidents') return queryResult({ data: { id: incident, institution_id: tenant, reporter_membership_id: member, visibility: 'routine' }, error: null });
-      return queryResult({ data: null, count: null, error: voteQuery++ === failingQuery ? { message: 'vote store unavailable' } : null });
-    });
-    await expect(getPersistentIncident(context, incident)).rejects.toMatchObject({ status: 503 });
+  it('returns vote facts from one authorized database query', async () => {
+    state.rpc.mockResolvedValue({ data: { id:incident,institution_id:tenant,reporter_membership_id:member,visibility:'routine',version:1,vote_count:7,has_voted:true }, error: null });
+    await expect(getPersistentIncident(context, incident)).resolves.toMatchObject({ voteCount:7,hasVoted:true });
+    expect(state.rpc).toHaveBeenCalledTimes(1);
+    expect(state.from).not.toHaveBeenCalled();
   });
 });
 

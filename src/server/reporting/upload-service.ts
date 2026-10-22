@@ -57,11 +57,11 @@ export async function authorizePrivateUpload(
   // 4. Generate randomized storage key
   const randomSuffix = crypto.randomUUID();
   const sanitizedExt = request.mimeType.split('/')[1] || 'jpg';
-  const storageKey = `institutions/${request.institutionId}/incidents/${
+  const storageKey = `institutions/${request.institutionId}/members/${request.memberId}/incidents/${
     request.incidentId || 'pre-intake'
   }/${Date.now()}_${randomSuffix}.${sanitizedExt}`;
 
-  const expiresAt = new Date((options.nowMs || Date.now()) + 15 * 60 * 1000).toISOString();
+  const expiresAt = new Date((options.nowMs || Date.now()) + 2 * 60 * 60 * 1000).toISOString();
 
   const signUpload = options.signUpload ?? (async (key: string) => {
     const { data, error } = await createSupabaseAdmin().storage
@@ -71,6 +71,13 @@ export async function authorizePrivateUpload(
     return data.signedUrl;
   });
   const uploadUrl = await signUpload(storageKey);
+  if (!options.signUpload) {
+    const { error } = await createSupabaseAdmin().rpc("orion_register_upload", {
+      actor_id: request.memberId, tenant_id: request.institutionId, object_key: storageKey,
+      object_size: request.fileSize, object_mime: request.mimeType, incident_id: request.incidentId,
+    });
+    if (error) throw error;
+  }
 
   return {
     uploadUrl,

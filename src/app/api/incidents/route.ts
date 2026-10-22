@@ -12,8 +12,8 @@ export async function GET(req: NextRequest) {
   try {
     const context = await requireRequestContext(req);
 
-    const incidents = await listPersistentIncidents(context);
-    return jsonSuccess({ incidents });
+    const incidents = await listPersistentIncidents(context, req.nextUrl.searchParams.get("cursor"));
+    return jsonSuccess({ incidents, nextCursor: incidents.length === 50 ? `${incidents.at(-1)!.createdAt}|${incidents.at(-1)!.id}` : null });
   } catch (err: unknown) {
     const authFailure = authorizationFailure(err);
     if (authFailure) return authFailure;

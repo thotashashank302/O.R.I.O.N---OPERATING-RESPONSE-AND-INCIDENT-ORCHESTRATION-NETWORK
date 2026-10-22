@@ -1,3 +1,4 @@
+import { listApprovalQueue } from "@/server/operations/approval-queue";
 import { activeMembership } from "@/server/auth/active-membership";
 /**
  * ORION — HOD Dashboard
@@ -39,15 +40,6 @@ interface IncidentQueueItem {
   deadline: string | null;
   is_overdue: boolean;
   is_escalated: boolean;
-}
-
-interface RawApprovalRow {
-  id: string;
-  action_payload_hash: string;
-  plan_version: number;
-  incident_id: string;
-  incident: { severity: string } | null;
-  created_at: string;
 }
 
 interface RawIncidentRow {
@@ -99,23 +91,7 @@ export default async function HODPage() {
     redirect("/dashboard");
   }
 
-  // Fetch pending approvals for HOD's department
-  const { data: rawApprovals } = await supabase
-    .from("approvals")
-    .select(
-      `
-      id,
-      action_payload_hash,
-      plan_version,
-      created_at,
-      incident_id,
-      incident:incidents(severity)
-    `
-    )
-    .eq("institution_id", membership.institution_id)
-    .is("decision", null)
-    .order("created_at", { ascending: true })
-    .limit(20);
+  const approvalQueue = await listApprovalQueue(membership);
 
   // Fetch incident queue for HOD's department
   const { data: rawIncidents } = await supabase
@@ -137,16 +113,10 @@ export default async function HODPage() {
     .order("created_at", { ascending: false })
     .limit(30);
 
-  const approvalRows = (rawApprovals ?? []) as unknown as RawApprovalRow[];
-  const pendingApprovals: PendingApproval[] = approvalRows.map((a) => ({
-    id: a.id,
-    action_payload_hash: a.action_payload_hash,
-    plan_version: a.plan_version,
-    action_description: "Pending orchestrated action requiring HOD approval",
-    requested_by_name: "ORION orchestration",
-    incident_id: a.incident_id,
-    is_high_risk: a.incident?.severity === "critical" || a.incident?.severity === "high",
-    created_at: a.created_at,
+  const pendingApprovals: PendingApproval[] = approvalQueue.map(a => ({
+    id: a.id, action_payload_hash: a.actionPayloadHash, plan_version: a.planVersion,
+    action_description: a.description, requested_by_name: a.staffName,
+    incident_id: a.incidentId, is_high_risk: true, created_at: a.createdAt,
   }));
 
   const incidentRows = (rawIncidents ?? []) as unknown as RawIncidentRow[];

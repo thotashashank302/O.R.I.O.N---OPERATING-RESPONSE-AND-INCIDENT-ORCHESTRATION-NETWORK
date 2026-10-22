@@ -19,7 +19,10 @@ export function parseRecipientAllowlist(value: string): Set<string> {
 }
 
 export function assertRecipientAllowed(recipient: string, config: Pick<OutboxDeliveryConfig, "demoMode" | "recipientAllowlist">): void {
-  if (config.demoMode && !recipient.toLowerCase().endsWith("@orion-demo.edu") && !config.recipientAllowlist.has(recipient.toLowerCase())) {
+  if (/@orion-demo\.edu$|\.(local|test)$/i.test(recipient)) {
+    throw new Error("Demo addresses cannot receive delivery; use an explicitly allowlisted test account");
+  }
+  if (config.demoMode && !config.recipientAllowlist.has(recipient.toLowerCase())) {
     throw new Error("Demo recipient is not allowlisted");
   }
 }

@@ -1,116 +1,170 @@
 # ORION
 
-Operating Response & Incident Orchestration Network: a campus incident application
-built with Next.js, Supabase, Featherless AI and Resend.
+**Operating Response & Incident Orchestration Network** — accountable campus incident handling with bounded AI planning and human authorization.
 
-## Start here
+[Start locally](#run-locally) · [Architecture](#how-it-fits-together) · [Repository map](#repository-map) · [Verification](#verify-a-change) · [Deployment](docs/operations/deployment.md)
 
-Requires Node.js 22+ and npm. From the repository root:
+The selected setup stays on Supabase Free and uses the existing local worker, with no paid scheduler configured. See the [free-plan operating guide](docs/operations/free-plan.md) for setup requirements and limits.
 
-```sh
-npm ci
-cp .env.example .env # first setup only; keep an existing configured .env
+> **Release status:** the readiness migration is applied to the ORION Supabase project. Deploy the matching application/worker code and complete the [release checklist](docs/operations/readiness.md). See the [hosted migration record](docs/operations/hosted-migration-2026-10-22.md) for verification and remaining gates.
+
+## From report to verified outcome
+
+```mermaid
+flowchart TD
+    A[Authenticated campus member] --> B[Authorized incident intake]
+    B --> C[Triage and risk classification]
+    C --> D{Location clear?}
+    D -->|No| E[Reporter clarification]
+    E --> F
+    D -->|Yes| F[Commander builds a bounded plan]
+    F --> G[Specialist proposes eligible staff and checklist]
+    G --> H{Human approval required?}
+    H -->|Yes| I[Scoped operator reviews exact action]
+    I -->|Reject| F
+    I -->|Approve| J[Transactional assignment and notification]
+    H -->|No| J
+    J --> K[Staff acknowledge and perform work]
+    K --> L[Notes, functional tests and private photos]
+    L --> M[Agent evidence review]
+    M --> N[Designated human verifies current evidence]
+    N -->|Reject| F
+    N -->|Accept| O{All tasks verified?}
+    O -->|No| G
+    O -->|Yes| P[Incident resolved with audit trail]
 ```
 
-Fill in the provider credentials in `.env`. Use `APP_URL=http://localhost:3000`
-for local use; `AUTOMATION_SECRET` must contain at least 32 characters.
+Physical, unknown, sensitive and high-risk categories require a human decision before dispatch. Ordinary `other` work can bypass this gate only when its visibility and severity permit it. The database enforces the same floor as the application. AI cannot grant roles or independently confirm physical repairs.
+
+## How it fits together
+
+```mermaid
+flowchart LR
+    U[Browser and role dashboards] --> W[Next.js routes]
+    W --> A[Fresh membership and scope checks]
+    A --> T[Database transactions]
+    T --> D[(Supabase Postgres and RLS)]
+    W --> S[Private Storage]
+    T --> Q[(Durable jobs and email outbox)]
+    C[Authenticated scheduler] --> R[Worker with renewable leases]
+    R --> Q
+    R --> F[Featherless structured decisions]
+    R --> E[Resend]
+    E --> H[Signed delivery webhooks]
+    H --> W
+    R --> D
+```
+
+| Boundary | Enforcement |
+| --- | --- |
+| Institution and role | Current server records, role dates and selected membership |
+| Confidential cases | Shared case policy on incidents and related plans, tasks, approvals and evidence |
+| Dangerous dispatch | Trusted approval floor plus exact payload/plan binding |
+| Workflow changes | Transactions, row locks, versions and durable follow-up intent |
+| Background recovery | Claim ownership, renewable leases, bounded retries and supervisor escalation |
+| Evidence | Private upload ownership, actual object metadata and current assignment/version |
+| Closure | Independent designated human review after evidence submission |
+
+## Run locally
+
+Requires **Node.js 22+**, npm and your own configured Supabase, Featherless and Resend services.
 
 ```sh
+npm ci --ignore-scripts
+cp .env.example .env
+# Fill in .env; keep an existing configured file.
 npm run build
 npm run local:start
 ```
 
-Open **http://localhost:3000**. Keep the terminal running and the computer awake.
-The launcher starts the website and a background worker, polling every 10 seconds
-after the previous tick completes. Ctrl+C stops both. Rebuild after source changes.
-For development with automatic recompilation, use `npm run local`.
-`npm run dev` starts only the website, without the recurring worker.
+Open **http://localhost:3000**. The local launcher runs the website and polls the worker every ten seconds. Keep it running while testing. `npm run local` enables development recompilation; `npm run dev` runs only the website.
 
-The launcher sets `APP_URL` to localhost for its process. Supabase, AI and email
-still use the configured online services. Queued work may update the connected
-database and send notifications. Vercel cron restrictions do not apply to this
-local worker. Local email links open on this computer; public webhooks need a
-reachable URL.
+Local operation still uses the services configured in `.env` and may send email or update their database. Use an isolated development project. There are no bundled production accounts or default login credentials; [create test data deliberately](docs/development/setup.md).
 
-For password recovery, allow
-`http://localhost:3000/auth/callback?next=/reset-password` in Supabase Auth URL
-Configuration and configure its email sender. Open the recovery link in the
-browser that requested it.
+## Repository map
 
-## Project map
+```text
+src/
+├── app/                 Routes, pages and layouts
+├── contracts/           Validated domain, HTTP and database contracts
+├── features/            Feature UI, including approval and verification desks
+├── server/
+│   ├── agents/          Bounded model decisions and trusted safety policy
+│   ├── auth/            Current membership and authorization
+│   ├── identity/        Institutions, rosters and roles
+│   ├── operations/      Assignment and availability services
+│   ├── orchestration/   Durable worker, leases and planning continuation
+│   ├── reporting/       Intake, feed, evidence upload and confirmation
+│   └── email/           Outbox, transport, action tokens and webhooks
+└── emails/              Notification templates
+supabase/
+├── migrations/          Ordered, forward-only schema changes
+└── tests/               SQL checks and historical regression inputs
+tests/
+├── unit/                Unit and route regressions
+├── integration/         Disposable PostgreSQL security and workflow tests
+├── e2e/                 Browser smoke and authenticated regressions
+└── fixtures/            Test-only simulations
+scripts/                 Local runtime, diagnostics, demo seeding and packaging
+docs/
+├── architecture/        API contract
+├── development/         Setup and ownership
+├── operations/          Deployment, readiness and recovery
+├── product/             Product and visual design records
+├── security/            Historical security remediation
+├── testing/             Historical browser review
+└── archive/             Superseded plans and handoff material
+```
 
-| Folder | Purpose |
+Framework configuration stays at the root. Feature implementations remain beside their contracts and UI; applied migration files retain their original names and contents.
+
+## Verify a change
+
+| Command | Checks |
 | --- | --- |
-| `src/app/` | Next.js pages, layouts and API routes |
-| `src/features/` | Feature interfaces, shared dashboard shell and contracts |
-| `src/contracts/` | Shared schemas and types |
-| `src/server/` | Authentication, persistence, agents and background workflows |
-| `src/emails/` | Email templates used by the notification transport |
-| `src/lib/` | Shared utilities |
-| `public/` | Assets served by the website, including the login photograph |
-| `supabase/migrations/` | Ordered database migration history; do not edit applied migrations |
-| `supabase/tests/` | SQL regression checks |
-| `scripts/` | Local launcher, worker, diagnostics and packaging tools |
-| `tests/unit/` | Unit and route regression tests |
-| `tests/e2e/` | Browser smoke and regression tests |
-| `tests/fixtures/` | Test-only simulations; never import into application code |
-| `docs/` | Current contracts, ownership, product/design notes and review results |
-| `docs/archive/` | Historical plans, handoff progress and non-executable schema drafts |
+| `npm run check` | Lint → TypeScript → unit tests → production build |
+| `npm run test:db` | Migrates a disposable database and tests access, transactions, concurrency and recovery |
+| `npx playwright test tests/e2e/baseline.spec.ts` | Unauthenticated browser smoke tests |
+| `npm run test:e2e` | All browser tests; authenticated cases require isolated test accounts |
+| `npm audit --omit=dev` | Production dependency advisories |
+| `npm run package` | Builds an archive excluding secrets, dependencies and caches |
 
-The persisted reporting implementation is `src/server/reporting/persistent-service.ts`;
-API routes and database migrations enforce production workflow rules. The old
-in-memory reporting models live exclusively in test fixtures.
+Start the integration database separately:
 
-## Demo access
+```sh
+docker compose -f compose.test.yaml up -d --wait
+npm run test:db
+docker compose -f compose.test.yaml down
+```
 
-These accounts belong to the existing controlled demo database. They are not
-created automatically by installing the project. Password: `OrionDemo2026!`.
+The integration runner connects only to `127.0.0.1:55439`, creates its own `orion_security_*` database and drops it afterward. It never loads `.env` or a hosted connection URL. Supabase Auth/Storage tables are modeled locally; real platform and provider acceptance remains a separate release gate.
 
-| Role | Email | Dashboard |
-| --- | --- | --- |
-| Student | `student.aiml@orion-demo.edu` | `/student` |
-| Class representative | `cr.aiml@orion-demo.edu` | `/cr` |
-| Electrician | `staff.electrician@orion-demo.edu` | `/staff` |
-| Facilities staff | `staff.facilities@orion-demo.edu` | `/staff` |
-| HOD | `hod.facilities@orion-demo.edu` | `/hod` |
-| Principal | `principal@orion-demo.edu` | `/principal` |
+GitHub Actions runs these checks on pushes and pull requests. Repository administrators must enable the workflow and configure required checks in branch protection.
 
-## Commands and verification
+## Reliable automation and recovery
 
-| Command | Purpose |
-| --- | --- |
-| `npm run local` | Development website and recurring worker |
-| `npm run local:start` | Built website and recurring worker |
-| `npm run lint` | ESLint checks |
-| `npm run typecheck` | TypeScript checks |
-| `npm test` | Unit and route tests |
-| `npm run build` | Production build |
-| `npm run test:e2e` | Browser checks; install Chromium with `npx playwright install chromium` first |
-| `npm run package` | Create `dist/ORION_CLEAN_WORKING_SOURCE.zip` (requires Python 3) |
+```mermaid
+flowchart TD
+    A[Continuous local worker polls protected endpoint] --> B[Claim due job with a lease]
+    B --> C[Run bounded handler and renew lease]
+    C --> D{Result}
+    D -->|Success| E[Complete only the current claim]
+    D -->|Temporary failure| F[Persist retry with backoff]
+    F --> A
+    D -->|Attempt limit| G[Dead job and supervisor escalation]
+    C -->|Process exits| H[Lease expires]
+    H --> A
+    G --> I[Operator investigates and selects recovery]
+```
 
-Run verification commands serially. Browser tests use localhost and the existing
-demo accounts; action/failure regressions intercept writes. They do not prove a
-complete live incident lifecycle or email delivery.
-
-The isolated PostgreSQL security runner and its setup are documented in
-[Security remediation](docs/SECURITY_REMEDIATION.md). `scripts/check-live-model.ts`
-is an optional live provider diagnostic. `scripts/seed-demo.ts` writes demo
-institution structure; it does not provision the login accounts above.
+`npm run local:start` runs the continuous local worker. No Vercel cron is configured: Hobby permits daily scheduling, which cannot satisfy this workflow's deadlines. Keep the worker machine awake and connected; stopping it pauses automation. See [free-plan operation](docs/operations/free-plan.md), [deployment and health checks](docs/operations/deployment.md), and [recovery procedures](docs/operations/recovery.md).
 
 ## Documentation
 
-- [API contract](docs/API_CONTRACT.md) and [team ownership](docs/OWNERSHIP.md)
-- [Product scope](docs/PRODUCT.md) and [visual design](docs/DESIGN.md)
-- [Security remediation and database validation](docs/SECURITY_REMEDIATION.md)
-- [Browser debugging results](docs/BROWSER_DEBUG_REVIEW.md)
-- [Historical handoff archive](docs/archive/README.md)
+- [API contract](docs/architecture/api-contract.md)
+- [Product scope](docs/product/product.md) and [design record](docs/product/design.md)
+- [Development setup](docs/development/setup.md) and [ownership](docs/development/ownership.md)
+- [Release readiness](docs/operations/readiness.md), [deployment](docs/operations/deployment.md) and [recovery](docs/operations/recovery.md)
+- [Earlier security remediation](docs/security/previous-remediation.md) and [browser review](docs/testing/previous-browser-review.md)
 
-## Sharing and disk space
-
-`npm run package` includes source, configuration templates, documentation, tests
-and migrations. It excludes credentials, installed dependencies, build caches,
-Git history, screenshots and previous archives. The ZIP is generated and ignored
-by Git. After extracting, follow the setup steps above with your own `.env`.
-
-`node_modules/` and `.next/` account for most installed disk usage. They are ignored
-by Git and excluded from the ZIP, but are needed to run the installed application.
+Historical reports describe their recorded revisions and environments; they are not proof that the current target deployment has the matching schema or code.

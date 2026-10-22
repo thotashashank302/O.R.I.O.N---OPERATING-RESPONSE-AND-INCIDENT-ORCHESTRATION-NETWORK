@@ -1,60 +1,17 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import ReportForm from '@/features/reporting/components/ReportForm';
 import IncidentCard from '@/features/reporting/components/IncidentCard';
-import type { IncidentSummaryProps } from '@/features/reporting/components/IncidentCard';
-import { orionContextHeaders, useActiveContext } from '@/features/identity/use-active-context';
-import type { UserContextItem } from '@/contracts/identity';
-
-type IncidentSummary = IncidentSummaryProps['incident'];
-
-async function fetchIncidents(context: UserContextItem): Promise<IncidentSummary[]> {
-  const response = await fetch('/api/incidents', {
-    headers: orionContextHeaders(context),
-  });
-  const payload = (await response.json()) as { data?: { incidents?: IncidentSummary[] }; error?: { message?: string } };
-  if (!response.ok || !payload.data?.incidents) throw new Error(payload.error?.message ?? 'Unable to load the incident feed');
-  return payload.data.incidents;
-}
+import { useActiveContext } from '@/features/identity/use-active-context';
+import { useIncidentFeed } from '@/features/reporting/use-incident-feed';
 
 export default function StudentDashboardPage() {
   const [showReportModal, setShowReportModal] = useState(false);
-  const [incidents, setIncidents] = useState<IncidentSummary[]>([]);
-  const [feedError, setFeedError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
   const contextState = useActiveContext();
   const activeContext = contextState.activeContext;
 
-  const loadIncidents = async () => {
-    try {
-      setLoading(true);
-      setFeedError(null);
-      if (activeContext) setIncidents(await fetchIncidents(activeContext));
-    } catch (err) {
-      setFeedError(err instanceof Error ? err.message : 'Unable to load incidents');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    let cancelled = false;
-    if (!activeContext) return;
-    fetchIncidents(activeContext)
-      .then((nextIncidents) => {
-        if (!cancelled) { setIncidents(nextIncidents); setFeedError(null); }
-      })
-      .catch((error: unknown) => {
-        if (!cancelled) setFeedError(error instanceof Error ? error.message : 'Unable to load incidents');
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [activeContext]);
+  const { incidents, feedError, loading, loadIncidents, loadMore, nextCursor } = useIncidentFeed(activeContext);
 
   if (contextState.loading || !activeContext) {
     return <div className="p-8 text-center text-stone-500">{contextState.error ?? 'Loading your campus context…'}</div>;
@@ -146,6 +103,7 @@ export default function StudentDashboardPage() {
       </div>
 
       {/* Report Modal */}
+      {nextCursor && <button type="button" disabled={loading} onClick={loadMore} className="rounded-lg border px-4 py-2 disabled:opacity-50">{loading ? "Loading…" : "Load older incidents"}</button>}
       {showReportModal && (
         <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
           <div className="relative w-full max-w-xl my-8">

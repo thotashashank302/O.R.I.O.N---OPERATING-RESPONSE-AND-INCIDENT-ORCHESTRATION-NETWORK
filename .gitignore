@@ -14,3 +14,8 @@ coverage/
 # Auto-generated files (re-created on npm run dev/build)
 next-env.d.ts
 AGENTS.md
+
+# Verification artifacts
+tsconfig.tsbuildinfo
+test-results/
+playwright-report/

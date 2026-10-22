@@ -5,12 +5,13 @@ import type { RoleEnum } from "@/contracts/identity";
 import { dashboardRouteForRoles } from "@/features/auth/dashboard-route";
 
 const ROUTE_ROLES: Record<string, RoleEnum[]> = {
+  "/approvals": ["principal", "admin", "hod"],
   "/principal": ["principal"],
   "/admin": ["admin", "safeguarding_officer"],
   "/hod": ["hod"],
   "/staff": ["supervisor", "staff"],
   "/cr": ["cr"],
-  "/transport": ["transport_admin"],
+  "/transport": ["transport_admin", "student"],
   "/clubs": ["president", "coordinator"],
   "/student": ["student"],
 };
@@ -79,5 +80,7 @@ export const config = {
     "/clubs/:path*",
     "/transport/:path*",
     "/incidents/:path*",
+    "/verification/:path*",
+    "/approvals/:path*",
   ],
 };

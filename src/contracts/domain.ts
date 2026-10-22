@@ -14,7 +14,7 @@ export const taskStateSchema = z.enum([
 export const assignmentStateSchema = z.enum([
   "offered", "acknowledged", "active", "handover_requested", "released", "completed", "cancelled",
 ]);
-export const jobStatusSchema = z.enum(["queued", "running", "succeeded", "retry_wait", "dead"]);
+export const jobStatusSchema = z.enum(["queued", "running", "succeeded", "retry_wait", "dead", "cancelled"]);
 export const emailStatusSchema = z.enum(["queued", "sending", "sent", "delivered", "failed", "bounced", "suppressed"]);
 export const visibilitySchema = z.enum(["routine", "restricted", "confidential"]);
 export const severitySchema = z.enum(["low", "normal", "high", "critical"]);

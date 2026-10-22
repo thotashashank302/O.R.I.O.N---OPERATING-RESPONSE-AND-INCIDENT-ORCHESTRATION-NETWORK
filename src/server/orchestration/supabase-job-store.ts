@@ -30,6 +30,7 @@ export class SupabaseJobStore implements JobStore {
         incidentId: job.incident_id,
         institutionId: job.institution_id,
         status: "running",
+        workerId,
         attempt: job.attempt,
         dueAt: new Date(job.due_at),
         leaseUntil: job.lease_until ? new Date(job.lease_until) : null,
@@ -38,23 +39,16 @@ export class SupabaseJobStore implements JobStore {
     });
   }
 
-  async succeed(jobId: string): Promise<void> {
-    const { error } = await this.client.from("jobs").update({ status: "succeeded", lease_until: null, last_error: null }).eq("id", jobId).eq("status", "running");
+  private async control(job: JobRecord, operation: string, nextDue?: Date, reason?: string, leaseSeconds = 290): Promise<void> {
+    const { error } = await this.client.rpc("orion_job_control", {
+      target_id: job.id, claim_worker: job.workerId, claim_attempt: job.attempt,
+      operation, lease_seconds: leaseSeconds, next_due: nextDue?.toISOString(), reason,
+    });
     if (error) throw error;
   }
-
-  async retry(jobId: string, dueAt: Date, safeError: string): Promise<void> {
-    const { error } = await this.client.from("jobs").update({ status: "retry_wait", due_at: dueAt.toISOString(), lease_until: null, last_error: safeError }).eq("id", jobId).eq("status", "running");
-    if (error) throw error;
-  }
-
-  async dead(jobId: string, safeError: string): Promise<void> {
-    const { error } = await this.client.from("jobs").update({ status: "dead", lease_until: null, last_error: safeError }).eq("id", jobId).eq("status", "running");
-    if (error) throw error;
-  }
-
-  async notifySupervisor(job: JobRecord, reason: string): Promise<void> {
-    const { error } = await this.client.rpc("record_dead_job_escalation", { job_id: job.id, safe_reason: reason });
-    if (error) throw error;
-  }
+  async renew(job: JobRecord, leaseSeconds: number) { await this.control(job, "renew", undefined, undefined, leaseSeconds); }
+  async succeed(job: JobRecord) { await this.control(job, "succeed"); }
+  async retry(job: JobRecord, dueAt: Date, reason: string) { await this.control(job, "retry", dueAt, reason); }
+  async dead(job: JobRecord, reason: string) { await this.control(job, "dead", undefined, reason); }
+  async notifySupervisor() { /* Dead-job escalation commits inside orion_job_control. */ }
 }

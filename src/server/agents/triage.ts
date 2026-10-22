@@ -193,8 +193,6 @@ export async function runTriageAgent(
   const prompt = buildTriagePrompt(context);
 
   try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), options.timeoutMs || 30000);
 
     const response = await fetch(`${baseUrl}/chat/completions`, {
       method: 'POST',
@@ -211,10 +209,9 @@ export async function runTriageAgent(
         temperature: options.temperature ?? 0.1,
         max_tokens: 1000,
       }),
-      signal: controller.signal,
+      signal: AbortSignal.timeout(options.timeoutMs || 30000),
     });
 
-    clearTimeout(timeout);
 
     if (!response.ok) {
       throw new Error(`Featherless API HTTP error: ${response.status} ${response.statusText}`);

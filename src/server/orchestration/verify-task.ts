@@ -31,6 +31,7 @@ export async function verifySubmittedTask(job: JobRecord) {
   });
   const failedProvider = decision.reasons.some(reason => /provider|unavailable|failed after|not configured/i.test(reason));
   const { error: persistenceError } = await db.rpc("orion_record_agent_verification", {
+    job_id: job.id, claim_worker: job.workerId!, claim_attempt: job.attempt,
     target_id: taskId, tenant_id: job.institutionId, expected_evidence_version: task.evidence_version,
     decision: decision as unknown as Json,
     agent_payload: {

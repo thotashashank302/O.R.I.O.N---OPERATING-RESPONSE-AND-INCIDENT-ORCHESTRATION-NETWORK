@@ -1,3 +1,4 @@
+import { z } from "zod";
 import { throwPersistenceError, WorkflowPersistenceError } from "./persistence-errors";
 import { randomUUID } from "node:crypto";
 import type { AuthorizedContext, IncidentState } from "@/contracts/domain";
@@ -5,7 +6,7 @@ import type { Json } from "@/contracts/database";
 import { PersistentCreateIncidentSchema, type CreateIncidentInput } from "@/contracts/reporting";
 import { runTriageAgent } from "@/server/agents/triage";
 import { createSupabaseAdmin } from "@/server/db/supabase-admin";
-import { enqueueCommanderJob } from "@/server/orchestration/commander-enqueue";
+
 
 interface IncidentRow {
   id: string;
@@ -24,6 +25,8 @@ interface IncidentRow {
   triage_summary: string | null;
   replan_job?: { id: string } | null;
   clarification_request: { question: string; missingFields: string[] } | null;
+  vote_count?: number;
+  has_voted?: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -50,14 +53,6 @@ function project(row: IncidentRow, voteCount = 0, hasVoted = false) {
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
-}
-
-function canRead(row: IncidentRow, context: AuthorizedContext): boolean {
-  if (row.institution_id !== context.institutionId) return false;
-  if (row.accused_membership_id === context.membershipId) return false;
-  if (row.visibility !== "confidential") return true;
-  return row.reporter_membership_id === context.membershipId
-    || context.roles.some((role) => ["principal", "admin", "safeguarding_officer"].includes(role));
 }
 
 async function voteFacts(incidentId: string, membershipId: string) {
@@ -127,24 +122,27 @@ export async function createPersistentIncident(context: AuthorizedContext, input
   return { ...result, incident: project(result.incident) };
 }
 
-export async function listPersistentIncidents(context: AuthorizedContext) {
-  const db = createSupabaseAdmin();
-  const { data, error } = await db.from("incidents").select("*")
-    .eq("institution_id", context.institutionId).order("created_at", { ascending: false }).limit(100);
+export async function listPersistentIncidents(context: AuthorizedContext, cursor?: string | null) {
+  const parts = cursor?.split("|");
+  if (parts && (parts.length !== 2 || !z.string().datetime({ offset: true }).safeParse(parts[0]).success || !z.string().uuid().safeParse(parts[1]).success)) {
+    throw new WorkflowPersistenceError("INVALID_CURSOR", "Invalid incident page cursor", 400);
+  }
+  const { data, error } = await createSupabaseAdmin().rpc("orion_incident_feed", {
+    actor_id: context.membershipId, tenant_id: context.institutionId,
+    before_time: parts?.[0], before_id: parts?.[1], page_size: 50,
+  });
   if (error) throwReadUnavailable();
-  const readable = (data as IncidentRow[]).filter((row) => canRead(row, context));
-  return Promise.all(readable.map(async (row) => {
-    const facts = await voteFacts(row.id, context.membershipId);
-    return project(row, facts.voteCount, facts.hasVoted);
-  }));
+  return (data as unknown as IncidentRow[] ?? []).map(row => project(row, row.vote_count ?? 0, row.has_voted ?? false));
 }
 
 export async function getPersistentIncident(context: AuthorizedContext, incidentId: string) {
-  const { data, error } = await createSupabaseAdmin().from("incidents").select("*").eq("id", incidentId).maybeSingle();
+  const { data, error } = await createSupabaseAdmin().rpc("orion_get_incident", {
+    actor_id: context.membershipId, tenant_id: context.institutionId, target_id: incidentId,
+  });
   if (error) throwReadUnavailable();
-  if (!data || !canRead(data as IncidentRow, context)) return null;
-  const facts = await voteFacts(incidentId, context.membershipId);
-  return project(data as IncidentRow, facts.voteCount, facts.hasVoted);
+  if (!data) return null;
+  const row = data as unknown as IncidentRow;
+  return project(row, row.vote_count ?? 0, row.has_voted ?? false);
 }
 
 export async function setPersistentVote(context: AuthorizedContext, incidentId: string, voted: boolean) {
@@ -165,18 +163,12 @@ export async function clarifyPersistentIncident(context: AuthorizedContext, inci
   if (!current || current.reporterId !== context.membershipId) throw new Error("Unauthorized: only the reporter can clarify this incident");
   if (current.version !== expectedVersion) throw new Error("Version mismatch");
   if (current.state !== "needs_clarification") throw new Error("Incident is not awaiting clarification");
-  const db = createSupabaseAdmin();
-  const nextVersion = expectedVersion + 1;
-  const { data, error } = await db.from("incidents").update({
-    description: `${current.description}\nReporter clarification: ${answer}`,
-    clarification_request: null,
-    state: "triaging",
-    version: nextVersion,
-    updated_at: new Date().toISOString(),
-  }).eq("id", incidentId).eq("version", expectedVersion).select("*").single();
-  if (error) throw error;
-  const job = await enqueueCommanderJob(incidentId);
-  return { incident: project(data as IncidentRow), job };
+  const { data, error } = await createSupabaseAdmin().rpc("orion_clarify_incident", {
+    target_id: incidentId, actor_id: context.membershipId, expected_version: expectedVersion, answer,
+  });
+  if (error) throwPersistenceError(error);
+  const result = data as unknown as { incident: IncidentRow; job: { id: string } };
+  return { incident: project(result.incident), job: result.job };
 }
 
 export async function confirmPersistentIncident(

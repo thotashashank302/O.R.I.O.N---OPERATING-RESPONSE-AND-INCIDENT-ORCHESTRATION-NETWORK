@@ -1866,7 +1866,21 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      orion_record_agent_verification: { Args: { target_id: string; tenant_id: string; expected_evidence_version: number; agent_payload: Json; decision: Json }; Returns: boolean }
+      orion_job_control: { Args: { target_id: string; claim_worker: string; claim_attempt: number; operation: string; lease_seconds?: number; next_due?: string; reason?: string }; Returns: undefined }
+      orion_can_preview_evidence: { Args: { actor_id: string; tenant_id: string; evidence_id: string }; Returns: boolean }
+      orion_verification_queue: { Args: { actor_id: string; tenant_id: string }; Returns: Json }
+      orion_automation_health: { Args: Record<string, never>; Returns: Json }
+      orion_record_tick: { Args: { failed: boolean }; Returns: undefined }
+      orion_get_incident: { Args: { actor_id: string; tenant_id: string; target_id: string }; Returns: Json }
+      orion_can_read_incident: { Args: { actor_id: string; tenant_id: string; target_id: string }; Returns: boolean }
+      orion_incident_feed: { Args: { actor_id: string; tenant_id: string; before_time?: string; before_id?: string; page_size?: number }; Returns: Json }
+      orion_decide_approval: { Args: { target_id: string; actor_id: string; tenant_id: string; expected_plan: number; expected_hash: string; requested_decision: string; reason?: string }; Returns: Json }
+      orion_override_incident: { Args: { target_id: string; actor_id: string; tenant_id: string; expected_version: number; reason: string; new_priority?: "critical" | "high" | "normal" | "low"; task_id?: string; new_assignee?: string; new_verifier?: string }; Returns: Json }
+      orion_clarify_incident: { Args: { target_id: string; actor_id: string; expected_version: number; answer: string }; Returns: Json }
+      orion_append_evidence: { Args: { target_id: string; actor_id: string; tenant_id: string; expected_version: number; evidence_kind: string; content: string; object_key?: string }; Returns: Json }
+      orion_register_upload: { Args: { actor_id: string; tenant_id: string; object_key: string; object_size: number; object_mime: string; incident_id?: string }; Returns: undefined }
+      orion_set_availability: { Args: { actor_id: string; tenant_id: string; expected_version: number; new_state: "available" | "busy" | "off_duty"; choice?: string; reason?: string }; Returns: Json }
+      orion_record_agent_verification: { Args: { target_id: string; tenant_id: string; expected_evidence_version: number; agent_payload: Json; decision: Json; job_id: string; claim_worker: string; claim_attempt: number }; Returns: boolean }
       orion_consume_upload_attempt: { Args: { tenant_id: string; actor_id: string }; Returns: boolean }
       orion_create_incident: { Args: { tenant_id: string; actor_id: string; operation_id: string; request_payload: Json; incident_payload: Json; agent_payload: Json }; Returns: Json }
       orion_verify_task: { Args: { target_id: string; actor_id: string; tenant_id: string; expected_evidence_version: number; decision: string; reason: string }; Returns: Json }
@@ -1915,6 +1929,8 @@ export type Database = {
       }
       persist_commander_plan: {
         Args: {
+          claim_worker: string
+          claim_attempt: number
           agent_run_id: string
           expected_incident_version: number
           job_id: string
@@ -1924,6 +1940,8 @@ export type Database = {
       }
       persist_specialist_action: {
         Args: {
+          claim_worker: string
+          claim_attempt: number
           action_payload: Json
           agent_run_id: string
           expected_incident_version: number
@@ -1981,7 +1999,7 @@ export type Database = {
         | "escalated"
         | "cancelled"
       incident_visibility: "routine" | "restricted" | "confidential"
-      job_status: "queued" | "running" | "succeeded" | "retry_wait" | "dead"
+      job_status: "queued" | "running" | "succeeded" | "retry_wait" | "dead" | "cancelled"
       membership_status: "active" | "inactive"
       role_name:
         | "principal"
@@ -2169,7 +2187,7 @@ export const Constants = {
         "cancelled",
       ],
       incident_visibility: ["routine", "restricted", "confidential"],
-      job_status: ["queued", "running", "succeeded", "retry_wait", "dead"],
+      job_status: ["queued", "running", "succeeded", "retry_wait", "dead", "cancelled"],
       membership_status: ["active", "inactive"],
       role_name: [
         "principal",

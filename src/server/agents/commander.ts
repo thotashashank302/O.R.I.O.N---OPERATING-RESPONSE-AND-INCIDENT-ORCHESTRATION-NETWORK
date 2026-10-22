@@ -3,6 +3,7 @@ import { incidentPlanSchema } from "@/contracts/agents";
 import type { IncidentContext } from "@/contracts/domain";
 import { validateTaskGraph } from "@/server/orchestration/dependencies";
 import type { FeatherlessProvider } from "./provider";
+import { requiresHumanApproval } from "./safety-policy";
 
 export interface CommanderContext {
   incident: IncidentContext;
@@ -26,6 +27,12 @@ export class CommanderAgent implements AgentModule<CommanderContext, IncidentPla
       schema: incidentPlanSchema,
     });
     validateTaskGraph(output.result.tasks);
+    if (requiresHumanApproval(input.context.incident)) {
+      output.result.tasks = output.result.tasks.map((task) => ({ ...task, requiresApproval: true }));
+    }
+    if (!output.result.tasks.every((task) => input.context.eligibleProfiles.includes(task.profile))) {
+      throw new Error("Commander selected an ineligible task profile");
+    }
     if (!output.result.specialists.every((profile) => input.context.eligibleProfiles.includes(profile))) {
       throw new Error("Commander selected an ineligible specialist profile");
     }

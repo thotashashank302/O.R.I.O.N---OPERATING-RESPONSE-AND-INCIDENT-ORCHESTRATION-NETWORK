@@ -15,6 +15,7 @@
  */
 
 import { useState, useTransition } from "react";
+import { useActiveContext, orionContextHeaders } from "@/features/identity/use-active-context";
 
 interface HODApprovalPanelProps {
   approvalId: string;
@@ -35,6 +36,7 @@ export function HODApprovalPanel({
   isHighRiskPhysical = false,
   onDecision,
 }: HODApprovalPanelProps) {
+  const { activeContext } = useActiveContext();
   const [reason, setReason] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [decided, setDecided] = useState<"approve" | "reject" | null>(null);
@@ -52,7 +54,7 @@ export function HODApprovalPanel({
       try {
         const res = await fetch(`/api/approvals/${approvalId}/decision`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", ...(activeContext ? orionContextHeaders(activeContext) : {}) },
           body: JSON.stringify({
             decision,
             action_payload_hash: actionPayloadHash,
@@ -112,7 +114,7 @@ export function HODApprovalPanel({
         <div>
           <h4 className="text-sm font-semibold">Pending Approval</h4>
           <p className="mt-0.5 text-xs text-stone-500">
-            Requested by <span className="text-stone-700">{requestedByName}</span>
+            Proposed staff: <span className="text-stone-700">{requestedByName}</span>
           </p>
         </div>
         <span className="rounded-full border border-stone-300 px-2 py-0.5 text-xs text-stone-500">
@@ -168,14 +170,14 @@ export function HODApprovalPanel({
       <div className="flex gap-3">
         <button
           onClick={() => handleDecision("reject")}
-          disabled={isPending}
+          disabled={isPending || !activeContext}
           className="flex-1 rounded-xl border border-red-300 bg-red-50 py-3 text-sm font-semibold text-red-700 transition-all hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {isPending ? "…" : "Reject"}
         </button>
         <button
           onClick={() => handleDecision("approve")}
-          disabled={isPending}
+          disabled={isPending || !activeContext}
           className="flex-1 rounded-xl border border-emerald-300 bg-emerald-50 py-3 text-sm font-semibold text-emerald-700 transition-all hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {isPending ? "…" : "Approve"}

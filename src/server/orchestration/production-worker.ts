@@ -23,7 +23,7 @@ export function createProductionWorker(): DurableJobWorker {
     apiKey: env.FEATHERLESS_API_KEY,
     baseUrl: env.FEATHERLESS_BASE_URL,
     model: env.FEATHERLESS_MODEL,
-    timeoutMs: 90_000,
+    timeoutMs: 60_000,
   });
   const commander = new CommanderAgent(provider);
   const specialist = new SpecialistAgent(provider);
@@ -64,6 +64,7 @@ export function createProductionWorker(): DurableJobWorker {
       expected_incident_version: context.incident.version,
       plan_payload: plan,
       agent_run_id: runId,
+      claim_worker: job.workerId!, claim_attempt: job.attempt,
     });
     if (rpcError) throw rpcError;
   };
@@ -97,6 +98,7 @@ export function createProductionWorker(): DurableJobWorker {
       expected_staff_version: selected.capabilityVersion,
       action_payload: output.result,
       agent_run_id: runId,
+      claim_worker: job.workerId!, claim_attempt: job.attempt,
     });
     if (persisted.error) throw persisted.error;
   };
@@ -140,15 +142,23 @@ export function createProductionWorker(): DurableJobWorker {
   const notifySupervisors = async (job: JobRecord, safeText: string, action: string) => {
     if (!job.incidentId) throw new Error(`${job.type} job requires an incident`);
     const { data: grants, error } = await client.from("role_grants")
-      .select("membership_id")
+      .select("membership_id,starts_at,ends_at,institution_memberships!role_grants_membership_id_institution_id_fkey!inner(status)")
       .eq("institution_id", job.institutionId)
       .in("role", ["principal", "hod", "supervisor"])
       .is("revoked_at", null);
     if (error) throw error;
-    if ((grants ?? []).length > 0) {
-      const { error: notifyError } = await client.from("notifications").insert((grants ?? []).map((grant) => ({
+    const datedGrants = (grants ?? []).filter(grant => grant.institution_memberships.status === "active"
+      && Date.parse(grant.starts_at) <= Date.now() && (!grant.ends_at || Date.parse(grant.ends_at) > Date.now()));
+    const permitted = await Promise.all([...new Set(datedGrants.map(grant => grant.membership_id))].map(async membershipId => {
+      const { data, error } = await client.rpc("orion_can_read_incident", { actor_id: membershipId, tenant_id: job.institutionId, target_id: job.incidentId! });
+      if (error) throw error;
+      return data ? membershipId : null;
+    }));
+    const recipients = permitted.filter((id): id is string => id !== null);
+    if (recipients.length > 0) {
+      const { error: notifyError } = await client.from("notifications").insert(recipients.map((membershipId) => ({
         institution_id: job.institutionId,
-        recipient_membership_id: grant.membership_id,
+        recipient_membership_id: membershipId,
         safe_text: safeText,
         link: `/incidents/${job.incidentId}`,
       })));
@@ -164,11 +174,13 @@ export function createProductionWorker(): DurableJobWorker {
     if (eventError) throw eventError;
   };
 
-  const handleAssignmentEscalation = (job: JobRecord) => notifySupervisors(
-    job,
-    "An ORION assignment missed its acknowledgement deadline and requires review.",
-    "assignment_acknowledgement_escalated",
-  );
+  const handleAssignmentEscalation = async (job: JobRecord) => {
+    const { data, error } = await client.from("assignments").select("state,active_version,acknowledgement_deadline")
+      .eq("id", payloadId(job, "assignmentId", "assignment_id")).eq("institution_id", job.institutionId).maybeSingle();
+    if (error) throw error;
+    if (!data?.active_version || data.state !== "offered" || Date.parse(data.acknowledgement_deadline) > Date.now()) return;
+    await notifySupervisors(job, "An assignment missed its acknowledgement deadline.", "assignment_acknowledgement_escalated");
+  };
 
   const handleVerifierReminder = async (job: JobRecord) => {
     const taskId = payloadId(job, "taskId", "task_id");
@@ -188,11 +200,13 @@ export function createProductionWorker(): DurableJobWorker {
     if (notifyError) throw notifyError;
   };
 
-  const handleVerifierEscalation = (job: JobRecord) => notifySupervisors(
-    job,
-    "An ORION task missed its verification deadline and requires reassignment.",
-    "verification_deadline_escalated",
-  );
+  const handleVerifierEscalation = async (job: JobRecord) => {
+    const { data, error } = await client.from("incident_tasks").select("state,verifier_due_at")
+      .eq("id", payloadId(job, "taskId", "task_id")).eq("institution_id", job.institutionId).maybeSingle();
+    if (error) throw error;
+    if (data?.state !== "submitted" || !data.verifier_due_at || Date.parse(data.verifier_due_at) > Date.now()) return;
+    await notifySupervisors(job, "A task missed its verification deadline.", "verification_deadline_escalated");
+  };
 
   return new DurableJobWorker(new SupabaseJobStore(client), {
     verification: verifySubmittedTask,

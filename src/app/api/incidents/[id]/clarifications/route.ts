@@ -16,7 +16,7 @@ export async function POST(
 
     const body = await req.json();
 
-    if (!body.answer || typeof body.answer !== 'string' || body.answer.trim().length < 2) {
+    if (!body.answer || typeof body.answer !== 'string' || (body.answer.trim().length < 2 || body.answer.length > 1000)) {
       return jsonError('VALIDATION_ERROR', 'A valid answer is required', 422);
     }
 
